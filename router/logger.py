@@ -1,17 +1,17 @@
 import discord
-from router.core import Core
+from router.settings import Settings
 
 class Logger():
     
-    def __init__(self, core: Core, guild: discord.Guild):
-        self.core = core
+    def __init__(self, settings: Settings, guild: discord.Guild):
+        self.settings = settings
         self.guild = guild
 
     async def print(self, *args):
         message = '\n'.join(args)
         try:
             # get the logging channel id from the config
-            channel_id: int = self.core.logging_channel
+            channel_id: int = self.settings.logging_channel
         except (TypeError, ValueError):
             return
         # get the channel object from the channel id
