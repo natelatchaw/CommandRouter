@@ -1,5 +1,5 @@
 import pytest
-from ..router.handler import Handler
+from router.handler import Handler
 
 class TestHandler:
     def test_handler(self):
