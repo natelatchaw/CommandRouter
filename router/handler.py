@@ -28,8 +28,8 @@ class Handler():
             try:
                 packaged_module: ModuleInterface = self.package(module)
                 self.add(packaged_module)
-            except ModuleNotFoundError as moduleNotFoundError:
-                print(f'Failed to load {module.name}: {moduleNotFoundError}')
+            except (ModuleNotFoundError, NameError) as error:
+                print(f'Failed to load {module.name}: {error}')
             except InvalidInitializerError as invalidInitializerError:
                 print(invalidInitializerError)
             
