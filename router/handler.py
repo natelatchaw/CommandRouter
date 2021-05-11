@@ -2,6 +2,7 @@ import pathlib
 import inspect
 import importlib.util
 import re
+from router.error.module import ModuleLoadError
 from router.module import ModuleInterface, InvalidInitializerError, InvalidCommandError
 
 class Handler():
@@ -13,11 +14,16 @@ class Handler():
 
     def load(self, modules_folder: pathlib.Path=None):
         try:
+            # if the modules folder path was not provided
             if not modules_folder:
                 raise TypeError('Could not determine modules folder.')
-            else:
-                modules_path = pathlib.Path(modules_folder).resolve()
-                print(f'Looking for modules in {modules_path}...')
+            # generate and resolve path of modules folder
+            modules_path = pathlib.Path(modules_folder).resolve()
+            # if the provided folder doesn't exist
+            if not modules_path.exists():
+                # raise exception
+                raise ValueError(f'Folder {modules_path.stem} does not exist.')
+            print(f'Looking for modules in {modules_path}...')
         except (TypeError, ValueError):
             raise
 
@@ -26,26 +32,36 @@ class Handler():
         # for each python file path
         for module in modules:
             try:
-                packaged_module: ModuleInterface = self.package(module)
-                self.add(packaged_module)
-            except (ModuleNotFoundError, NameError) as error:
-                print(f'Failed to load {module.name}: {error}')
+                # generate ModuleInterface object from module path
+                packaged_modules: list[ModuleInterface] = self.package(module)
+                # for each packaged module in the list of packaged modules
+                for packaged_module in packaged_modules:
+                    # add ModuleInterface object to Handler's tracked modules
+                    self.add(packaged_module)
+            # if an error occurs with module initialization
+            except ModuleLoadError as moduleLoadError:
+                print(moduleLoadError)
+            # if the module's initializer is not supported
             except InvalidInitializerError as invalidInitializerError:
                 print(invalidInitializerError)
             
-    def package(self, module: pathlib.Path) -> ModuleInterface:
+    def package(self, module: pathlib.Path) -> list[ModuleInterface]:
         # get module spec from module name and path
         spec = importlib.util.spec_from_file_location(module.stem, module.resolve())
         # create the module from the spec
         created_module = importlib.util.module_from_spec(spec)
-        # execute the created module
-        spec.loader.exec_module(created_module)
+        try:
+            # execute the created module
+            spec.loader.exec_module(created_module)
+        # if the module tries to import a module that hasn't been installed
+        except ModuleNotFoundError as moduleNotFoundError:
+            # raise exception
+            raise ModuleLoadError(module.stem, moduleNotFoundError)
         # get each class member in the module (excluding classes imported from other modules)
         members = [member for member in inspect.getmembers(created_module, inspect.isclass) if member[1].__module__ == created_module.__name__]
-        # get the name and class object for each class member
-        for module_name, module_class in members:
-            # create and return ModuleInterface
-            return ModuleInterface(module_name, module_class)
+        # initialize ModuleInterface object for each class in module
+        modules: list[ModuleInterface] = [ModuleInterface(module_name, module_class) for module_name, module_class in members]
+        return modules
 
     def add(self, module: ModuleInterface):
         # for each command's name in the command module
