@@ -1,5 +1,5 @@
 from configparser import DuplicateSectionError
-from bot.configuration.configuration import Configuration
+from router.configuration.configuration import Configuration
 
 class TokenStore(Configuration):
     

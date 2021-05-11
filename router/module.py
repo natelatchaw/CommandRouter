@@ -1,7 +1,7 @@
 import types
 import inspect
 from inspect import Signature, BoundArguments
-from bot.command import CommandInterface
+from router.command import CommandInterface
 
 class ModuleInterface():
 

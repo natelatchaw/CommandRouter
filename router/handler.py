@@ -2,7 +2,7 @@ import pathlib
 import inspect
 import importlib.util
 import re
-from bot.module import ModuleInterface, InvalidInitializerError, InvalidCommandError
+from router.module import ModuleInterface, InvalidInitializerError, InvalidCommandError
 
 class Handler():
     def __init__(self):        

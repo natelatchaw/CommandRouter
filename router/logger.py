@@ -1,5 +1,5 @@
 import discord
-from bot.core import Core
+from router.core import Core
 
 class Logger():
     

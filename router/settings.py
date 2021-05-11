@@ -1,5 +1,5 @@
-from bot.configuration.tokenstore import TokenStore
-from bot.configuration.uxstore import UXStore
+from router.configuration.tokenstore import TokenStore
+from router.configuration.uxstore import UXStore
 
 class Settings():
     def __init__(self):
