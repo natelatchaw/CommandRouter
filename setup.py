@@ -7,7 +7,12 @@ setup(
     author='Nathan Latchaw',
     author_email='natelatchaw@gmail.com',
     license='Creative Commons',
-    packages=['router', 'router.configuration', 'router.static'],
+    packages=[
+        'router',
+        'router.configuration',
+        'router.static',
+        'router.error',
+    ],
     url='not available',
     install_requires=[],
     classifiers=[
