@@ -1,6 +1,7 @@
 import types
 import inspect
 from inspect import Signature, BoundArguments
+from typing import Dict, List
 from router.command import CommandInterface
 
 class ModuleInterface():
@@ -18,7 +19,7 @@ class ModuleInterface():
         # instantiate obj and store
         self.instance = obj()
         # instantiate commands dictionary
-        self.commands: dict[str, Signature] = dict()
+        self.commands: Dict[str, Signature] = dict()
         # get each method member in the class instance
         members = [member for member in inspect.getmembers(self.instance, inspect.ismethod)]
         # iterate over all methods in the class instance

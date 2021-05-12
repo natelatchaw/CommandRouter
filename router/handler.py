@@ -2,15 +2,16 @@ import pathlib
 import inspect
 import importlib.util
 import re
+from typing import Dict, List
 from router.error.module import ModuleLoadError
 from router.module import ModuleInterface, InvalidInitializerError, InvalidCommandError
 
 class Handler():
     def __init__(self):        
         # map command names to module names
-        self._commands: dict[str, str] = dict()
+        self._commands: Dict[str, str] = dict()
         # map module names to modules
-        self._modules: dict[str, ModuleInterface] = dict()
+        self._modules: Dict[str, ModuleInterface] = dict()
 
     def load(self, modules_folder: pathlib.Path=None):
         try:
@@ -28,12 +29,12 @@ class Handler():
             raise
 
         # get all python file paths in the modules directory
-        modules: list[pathlib.Path] = [module for module in modules_path.glob('*.py') if module.is_file()]
+        modules: List[pathlib.Path] = [module for module in modules_path.glob('*.py') if module.is_file()]
         # for each python file path
         for module in modules:
             try:
                 # generate ModuleInterface object from module path
-                packaged_modules: list[ModuleInterface] = self.package(module)
+                packaged_modules: List[ModuleInterface] = self.package(module)
                 # for each packaged module in the list of packaged modules
                 for packaged_module in packaged_modules:
                     # add ModuleInterface object to Handler's tracked modules
@@ -60,7 +61,7 @@ class Handler():
         # get each class member in the module (excluding classes imported from other modules)
         members = [member for member in inspect.getmembers(created_module, inspect.isclass) if member[1].__module__ == created_module.__name__]
         # initialize ModuleInterface object for each class in module
-        modules: list[ModuleInterface] = [ModuleInterface(module_name, module_class) for module_name, module_class in members]
+        modules: List[ModuleInterface] = [ModuleInterface(module_name, module_class) for module_name, module_class in members]
         return modules
 
     def add(self, module: ModuleInterface):
@@ -83,7 +84,7 @@ class Handler():
             raise ModuleLookupError(module_name)
         return module
 
-    async def process(self, prefix: str, message: str, *, optionals: dict=dict()):
+    async def process(self, prefix: str, message: str, *, optionals: Dict=dict()):
 
         # filter non-string message parameters
         if not isinstance(message, str):
