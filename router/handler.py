@@ -23,7 +23,7 @@ class Handler():
             # if the provided folder doesn't exist
             if not modules_path.exists():
                 # raise exception
-                raise ValueError(f'Folder {modules_path.stem} does not exist.')
+                raise ValueError(f'Folder \'{modules_path}\' does not exist at path {modules_path.absolute().parent}.')
             print(f'Looking for modules in {modules_path}...')
         except (TypeError, ValueError):
             raise
