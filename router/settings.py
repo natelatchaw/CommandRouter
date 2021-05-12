@@ -72,13 +72,13 @@ class Settings():
         except ValueError as valueError:
             self._tokenStore.add_token(self.mode, '')
             missingToken = ' '.join([
-                f'No entry found with tag \'{self.mode}\'.',
+                f'No config entry found with tag \'{self.mode}\'.',
                 'An entry has been created for you to insert your token.'
             ])
             raise ValueError(missingToken)
         except TypeError as typeError:
             emptyToken = ' '.join([
-                f'Entry with tag \'{self.mode}\' contained an empty string.',
+                f'Config entry with tag \'{self.mode}\' contained an empty string.',
                 'Please insert a token for sign-in.'
             ])
             raise TypeError(emptyToken)
