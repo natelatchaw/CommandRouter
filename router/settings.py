@@ -70,15 +70,15 @@ class Settings():
         try:
             return self._tokenStore.get_token(self.mode)
         except ValueError as valueError:
-            self._tokenStore.add_token(self.mode, 'INSERT TOKEN HERE')
+            self._tokenStore.add_token(self.mode, '')
             missingToken = ' '.join([
-                f'No entry found with tag <{self.mode}>.',
+                f'No entry found with tag \'{self.mode}\'.',
                 'An entry has been created for you to insert your token.'
             ])
             raise ValueError(missingToken)
         except TypeError as typeError:
             emptyToken = ' '.join([
-                f'Entry with tag <{self.mode}> contained an empty string.',
+                f'Entry with tag \'{self.mode}\' contained an empty string.',
                 'Please insert a token for sign-in.'
             ])
             raise TypeError(emptyToken)
