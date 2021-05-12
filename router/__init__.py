@@ -1,3 +1,6 @@
+# support type annotations for Python versions < v3.9
+from __future__ import annotations
+
 """
 Command Router
 
