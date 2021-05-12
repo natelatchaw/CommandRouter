@@ -1,14 +1,24 @@
 import pathlib
 import pytest
+from router.error.handler import HandlerLoadError
 from router.handler import Handler
 
 class TestHandler:
+    
+    def test_handler_load_nonetype(self):
+        """
+        Test to see if calling load() with a NoneType value throws
+        """
+        handler: Handler = Handler()
+        with pytest.raises(HandlerLoadError):
+            handler.load()
+
     def test_handler_load_invalid_directory(self):
         """
-        Test to see if loading an invalid path throws a TypeError
+        Test to see if loading an invalid path throws
         """
         handler: Handler =  Handler()
-        with pytest.raises(TypeError):
+        with pytest.raises(HandlerLoadError):
             handler.load('')
 
     def test_handler_load_empty_directory(self, tmp_path: pathlib.Path):
