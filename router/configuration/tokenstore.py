@@ -41,7 +41,7 @@ class TokenStore(Configuration):
                 raise TypeError(f'Entry for token mode was empty.')
             return mode
         except (ValueError, TypeError) as error:
-            print('Tried to get entry for token mode but the entry either did not exist or was empty.')
+            ##print('Tried to get entry for token mode but the entry either did not exist or was empty.')
             raise error
     @mode.setter
     def mode(self, mode):
