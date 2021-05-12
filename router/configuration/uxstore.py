@@ -52,15 +52,15 @@ class UXStore(Configuration):
             raise
 
     @property
-    def modules(self) -> str:
+    def components(self) -> str:
         try:
-            return self.get_folder(self.section, 'modules')
+            return self.get_folder(self.section, 'components')
         except ValueError:
             raise
-    @modules.setter
-    def modules(self, modules: str):
+    @components.setter
+    def components(self, components: str):
         try:
-            self.set_folder(self.section, 'modules', modules)
+            self.set_folder(self.section, 'components', components)
         except ValueError:
             raise
         

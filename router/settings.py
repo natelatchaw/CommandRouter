@@ -29,19 +29,19 @@ class Settings():
         self._uxStore.owner = owner_id
 
     @property
-    def modules(self):
-        entry_name = 'modules'
+    def components(self):
+        entry_name = 'components'
         try:
-            return self._uxStore.modules
+            return self._uxStore.components
         except ValueError as valueError:
             invalidEntry = '\n'.join([
                 str(valueError),
                 f'Please insert a valid {entry_name} path in the config file.'
             ])
             raise ValueError(invalidEntry)
-    @modules.setter
-    def modules(self, modules):
-        self._uxStore.modules = modules
+    @components.setter
+    def components(self, components):
+        self._uxStore.components = components
 
     @property
     def mode(self):

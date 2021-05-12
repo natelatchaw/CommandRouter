@@ -2,9 +2,9 @@ import types
 import inspect
 from inspect import Signature, BoundArguments
 from typing import Dict, List
-from router.command import CommandInterface
+from router.command import Command
 
-class ModuleInterface():
+class Component():
 
     def __init__(self, name: str, obj: object):
         # get the signature of the object's initializer
@@ -14,7 +14,7 @@ class ModuleInterface():
             # raise error
             raise InvalidInitializerError(name)
 
-        # set module name
+        # set component name
         self.name = name
         # instantiate obj and store
         self.instance = obj()
@@ -30,15 +30,15 @@ class ModuleInterface():
             # otherwise
             else:
                 # insert name, signature pair into commands dictionary
-                self.commands[name] = CommandInterface(name, member)
+                self.commands[name] = Command(name, member)
         # get the docstring for the class
         self.doc = obj.__doc__
 
-        print(f'Loaded {len(self.commands)} commands from {self.name} module.')
+        print(f'Loaded {len(self.commands)} commands from {self.name} component.')
 
     def get_command_signature(self, command_name: str) -> Signature:
         """
-        Retrieve a command signature from the command module.
+        Retrieve a command signature from the component.
 
         Parameters:
             command_name: str - the command's name
@@ -50,23 +50,23 @@ class ModuleInterface():
         """
         # try to get the signature from the commands dictionary
         try:
-            command: CommandInterface = self.commands[command_name]
+            command: Command = self.commands[command_name]
             return command.signature
-        # if the module doesn't contain a command named 'command_name'
+        # if the component doesn't contain a command named 'command_name'
         except KeyError:
             raise InvalidCommandError(self.name, command_name)
 
     def get_command_callable(self, command_name: str) -> types.MethodType:
         """
-        Retrieve a command callable from the command module.
+        Retrieve a command callable from the component.
 
         Parameters:
             command_name: str - the command's name
         """
-        # try to get the command from the module instance
+        # try to get the command from the component instance
         try:
             return getattr(self.instance, command_name)
-        # if the module doesn't contain a command named 'command_name'
+        # if the component doesn't contain a command named 'command_name'
         except AttributeError:
             raise InvalidCommandError(self.name, command_name)
 
@@ -79,7 +79,7 @@ class ModuleInterface():
             command = self.get_command_callable(command_name)
             # the the command's signature
             signature = self.get_command_signature(command_name)
-        # if the module doesn't contain a command named 'command_name'
+        # if the component doesn't contain a command named 'command_name'
         except InvalidCommandError:
             raise
 
@@ -88,39 +88,39 @@ class ModuleInterface():
             raise ParameterMismatchError(signature, arguments.signature)
 
         # if the called command is synchronous
-        if CommandInterface.is_synchronous_method(command):
+        if Command.is_synchronous_method(command):
             # call command with parameters
             command(*arguments.args, **arguments.kwargs)
 
         # not supported yet
-        if CommandInterface.is_asynchronous_method(command):
+        if Command.is_asynchronous_method(command):
             await command(*arguments.args, **arguments.kwargs)
 
 
-class ModuleError(Exception):
-    """Base exception class for command module exceptions."""
+class ComponentError(Exception):
+    """Base exception class for component exceptions."""
     pass
 
-class InvalidInitializerError(ModuleError):
-    """Raised when a module class is provided that requires initialization parameters."""
+class InvalidInitializerError(ComponentError):
+    """Raised when a component class is provided that requires initialization parameters."""
 
-    def __init__(self, module_name: str):
-        self.module_name = module_name
+    def __init__(self, component_name: str):
+        self.component_name = component_name
 
     def __str__(self):
-        return f'Module {self.module_name} requires initialization parameters, which are not supported.'
+        return f'Component {self.component_name} requires initialization parameters, which are not supported.'
 
-class InvalidCommandError(ModuleError):
+class InvalidCommandError(ComponentError):
     """Raised when an attempt to access a non-existent command is made."""
     
-    def __init__(self, module_name, command_name):
-        self.module_name = module_name
+    def __init__(self, component_name, command_name):
+        self.component_name = component_name
         self.command_name = command_name
 
     def __str__(self):
-        return f'Command {self.command_name} does not exist in module {self.module_name}.'
+        return f'Command {self.command_name} does not exist in component {self.component_name}.'
 
-class ParameterMismatchError(ModuleError):
+class ParameterMismatchError(ComponentError):
     """Raised when arguments provided to a command do not match its signature."""
     
     def __init__(self, command_signature: Signature, argument_signature: Signature):
@@ -128,4 +128,4 @@ class ParameterMismatchError(ModuleError):
         self.argument_signature = argument_signature
 
     def __str__(self):
-        return f'''Invalid arguments provided to command. Expected {self.command_signature}; received {self.argument_signature}.'''
+        return f'Invalid arguments provided to command. Expected {self.command_signature}; received {self.argument_signature}.'

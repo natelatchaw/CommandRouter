@@ -1,7 +1,7 @@
 import inspect
 from inspect import Signature
 
-class CommandInterface():
+class Command():
     
     @classmethod
     def is_synchronous_method(cls, obj):

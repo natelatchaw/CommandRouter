@@ -15,11 +15,11 @@ class TestHandler:
         """
         Check behavior on loading empty directory
         """
-        # generate path for test module folder
-        test_modules: pathlib.Path = tmp_path.joinpath('test_modules')
+        # generate path for test component folder
+        test_components: pathlib.Path = tmp_path.joinpath('test_components')
         # make the directory from the path
-        test_modules.mkdir(parents=True)
+        test_components.mkdir(parents=True)
         # initialize Handler instance
         handler: Handler = Handler()
-        # load the test module folder
-        handler.load(test_modules)
+        # load the test component folder
+        handler.load(test_components)
