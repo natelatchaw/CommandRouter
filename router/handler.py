@@ -3,8 +3,9 @@ import inspect
 import importlib.util
 import re
 from typing import Dict, List
-from router.error.component import ComponentLoadError
-from router.component import Component, InvalidInitializerError, InvalidCommandError
+from router.error.component import CommandAccessError, ComponentLoadError
+from router.error.handler import ComponentLookupError, HandlerError, HandlerLoadError, HandlerPrefixError, ComponentAccessError, HandlerRunError
+from router.component import Component, ComponentError, InvalidInitializerError
 
 class Handler():
     def __init__(self):        
@@ -14,19 +15,16 @@ class Handler():
         self._components: Dict[str, Component] = dict()
 
     def load(self, components_folder: pathlib.Path=None):
-        try:
-            # if the components folder path was not provided
-            if not components_folder:
-                raise TypeError('Could not determine components folder.')
-            # generate and resolve path of components folder
-            components_path = pathlib.Path(components_folder).resolve()
-            # if the provided folder doesn't exist
-            if not components_path.exists():
-                # raise exception
-                raise ValueError(f'Folder \'{components_path}\' does not exist at path {components_path.absolute().parent}.')
-            print(f'Looking for components in {components_path}...')
-        except (TypeError, ValueError):
-            raise
+        # if the components folder path was not provided
+        if not components_folder:
+            raise HandlerLoadError(components_folder, TypeError('A components folder was not provided.'))
+        # generate and resolve path of components folder
+        components_path = pathlib.Path(components_folder).resolve()
+        # if the provided folder doesn't exist
+        if not components_path.exists():
+            # raise exception
+            raise HandlerLoadError(components_path, f'Folder \'{components_path.name}\' does not exist at path {components_path.absolute().parent}.')
+        print(f'Looking for components in {components_path}...')
 
         # get all python file paths in the components directory
         modules: List[pathlib.Path] = [module for module in components_path.glob('*.py') if module.is_file()]
@@ -40,8 +38,8 @@ class Handler():
                     # add Component object to Handler's tracked components
                     self.add(packaged_component)
             # if an error occurs with component initialization
-            except ComponentLoadError as componentLoadError:
-                print(componentLoadError)
+            except HandlerLoadError as handlerLoadError:
+                print(handlerLoadError)
             # if the component's initializer is not supported
             except InvalidInitializerError as invalidInitializerError:
                 print(invalidInitializerError)
@@ -55,9 +53,9 @@ class Handler():
             # execute the created module
             spec.loader.exec_module(created_module)
         # if the module tries to import a module that hasn't been installed
-        except ModuleNotFoundError as moduleNotFoundError:
+        except (ImportError, ModuleNotFoundError) as error:
             # raise exception
-            raise ComponentLoadError(module.stem, moduleNotFoundError)
+            raise HandlerLoadError(module, error)
         # get each class member in the module (excluding classes imported from other modules)
         members = [member for member in inspect.getmembers(created_module, inspect.isclass) if member[1].__module__ == created_module.__name__]
         # initialize Component object for each class in module
@@ -74,17 +72,24 @@ class Handler():
         self._components[component.name] = component
 
     def get(self, command_name: str) -> Component:
+        """
+        Get a component instance from the components dict
+
+        Raises:
+            ComponentLookupError - upon failure to get the component name given the command name from the commands dict
+            ComponentAccessError - upon failure to get the component instance given the component name from the components dict
+        """
         try:
             component_name = self._commands[command_name]
         except KeyError:
-            raise CommandLookupError(command_name)
+            raise ComponentLookupError(command_name, Exception(f'Command \'{command_name}\' could not be found.'))
         try:
             component: Component = self._components[component_name]
         except KeyError:
-            raise ComponentLookupError(component_name)
+            raise ComponentAccessError(component_name, Exception(f'Component \'{component_name}\' could not be found.'))
         return component
 
-    async def process(self, prefix: str, message: str, *, optionals: Dict=dict()):
+    async def process(self, prefix: str, message: str, *, optionals: Dict[str, object]=dict()):
         # filter non-string message parameters
         if not isinstance(message, str):
             raise TypeError(f'Cannot process object that is not of type {type(str)}')
@@ -96,7 +101,7 @@ class Handler():
             command_match: re.Match = re.match(rf'^{command_prefix}[\w]+', message)
             # if the prefixed command could not be found at the beginning of the message
             if not command_match:
-                raise TypeError(f'Message does not begin with prefix ({command_prefix})')
+                raise HandlerPrefixError(prefix, ValueError('Message to process does not begin with expected prefix.'))
             # get the prefixed command string from the match
             prefixed_command: str = command_match.group()
             # remove prefix from command
@@ -108,84 +113,55 @@ class Handler():
             prefixed_parameter: re.Pattern = re.compile(rf'^{parameter_prefix}')
 
             # find all substrings that start with the parameter prefix and have arguments
-            parameter_matches = re.findall(parameter_argument_pair, message)
+            parameter_matches: List[str] = re.findall(parameter_argument_pair, message)
             # strip the parameter prefix from each parameter/argument combo
-            parameter_matches = [re.sub(prefixed_parameter, '', parameter_match) for parameter_match in parameter_matches]
+            parameter_matches: List[str] = [re.sub(prefixed_parameter, '', parameter_match) for parameter_match in parameter_matches]
             # strip any mention strings down to the author's id
-            parameter_matches = [re.sub(r'<@!', '', parameter_match) for parameter_match in parameter_matches]
+            parameter_matches: List[str] = [re.sub(r'<@!', '', parameter_match) for parameter_match in parameter_matches]
             # split the argument/parameter combo into tuple(parameter, argument)
-            arguments = [tuple(parameter_match.split(maxsplit=1)) for parameter_match in parameter_matches]
+            arguments: List[str] = [tuple(parameter_match.split(maxsplit=1)) for parameter_match in parameter_matches]
             # convert list of tuples to dictionary
-            kwargs = { argument[0] : argument[1] for argument in arguments }
+            kwargs: Dict[str, str] = { argument[0] : argument[1] for argument in arguments }
 
             # create args list
-            args = list()
+            args: List = list()
+            # run the command
+            await self.run(command_name, args, kwargs, optionals)
 
-            try:
-                # try to get the relevant component
-                component = self.get(command_name)
-                # get the command's command signature
-                command_signature = component.get_command_signature(command_name)
-                
-                # for each optional keyvalue pair passed in through contructor
-                for optional_key, optional_value in optionals.items():
-                    # if the command's signature contains a parameter matching the optional key
-                    if optional_key in command_signature.parameters.keys():
-                        # add the correlated optional value to kwargs
-                        kwargs[optional_key] = optional_value
+        # if the message doesn't start with a prefix
+        except HandlerPrefixError:
+            return
+        except (HandlerError, ComponentError):
+            raise
 
-                # bind the processed arguments to the command signature
-                bound_arguments = command_signature.bind(*args, **kwargs)
-                # run the command with the assembled signature
-                await component.run_command(command_name, bound_arguments)
+    async def run(self, command_name: str, args: List, kwargs: Dict[str, str], optionals: Dict[str, object]=dict()):
+        """
+        Run a command given its name, args and kwargs, as well as any optional objects the command requires.
 
-            except HandlerError as handlerError:
-                raise handlerError
-
-            except TypeError as typeError:
-                raise CommandHandlingError(command_name, typeError)
-
-            except InvalidCommandError as invalidCommandError:
-                raise invalidCommandError
+        Raises:
+            CommandAccessError - upon failure to get command signature from component
+            ComponentAccessError - upon failure to get component from components dict
+            HandlerRunError - upon failure to bind args and kwargs to command signature
+        """
+        # get the relevant component
+        component = self.get(command_name)
+        try:
+            # get the command signature from the component
+            command_signature: inspect.Signature = component.get_command_signature(command_name)
+        except CommandAccessError:
+            raise
         
-        # if a valid command could not be parsed from the message
-        except TypeError:
-            # do nothing
-            pass
-            
+        # for each optional keyvalue pair passed in through contructor
+        for optional_key, optional_value in optionals.items():
+            # if the command's signature contains a parameter matching the optional key
+            if optional_key in command_signature.parameters.keys():
+                # add the correlated optional value to kwargs
+                kwargs[optional_key] = optional_value
 
-class HandlerError(Exception):
-    """Base exception class for the Handler class."""
-    pass
-
-class LookupError(HandlerError):
-    """Base exception class for command lookup-related errors."""
-    pass
-
-class CommandHandlingError(HandlerError):
-    """Raised when an exception occurs during the handling of a command."""
-
-    def __init__(self, command_name: str, typeError: TypeError):
-        self.command_name = command_name
-        self.typeError = typeError
-
-    def __str__(self):
-        return f'Error in {self.command_name} command: {self.typeError}'
-
-class CommandLookupError(LookupError):
-    """Raised when the commands dict returns a KeyError when looking up a command name."""
-
-    def __init__(self, command_name):
-        self.command_name = command_name
-
-    def __str__(self):
-        return f'Could not find specified command: {self.command_name}.'
-
-class ComponentLookupError(LookupError):
-    """Raised when the components dict returns a KeyError when looking up a component name."""
-
-    def __init__(self, component_name):
-        self.component_name = component_name
-
-    def __str__(self):
-        return f'Could not find specified component: {self.component_name}.'
+        try:
+            # bind the processed arguments to the command signature
+            bound_arguments = command_signature.bind(*args, **kwargs)
+            # run the command with the assembled signature
+            await component.run_command(command_name, bound_arguments)
+        except TypeError as typeError:
+            raise HandlerRunError(command_name, typeError)

@@ -3,6 +3,7 @@ import inspect
 from inspect import Signature, BoundArguments
 from typing import Dict, List
 from router.command import Command
+from router.error.component import CommandAccessError
 
 class Component():
 
@@ -43,6 +44,9 @@ class Component():
         Parameters:
             command_name: str - the command's name
 
+        Throws:
+            CommandAccessError - the component's commands dict doesn't contain an entry for command_name
+
         Note:
             Annotated types can be retreived from signatures, if available.
             for parameter in signature.parameters.values():
@@ -53,8 +57,8 @@ class Component():
             command: Command = self.commands[command_name]
             return command.signature
         # if the component doesn't contain a command named 'command_name'
-        except KeyError:
-            raise InvalidCommandError(self.name, command_name)
+        except KeyError as keyError:
+            raise CommandAccessError(self.name, command_name, keyError)
 
     def get_command_callable(self, command_name: str) -> types.MethodType:
         """
