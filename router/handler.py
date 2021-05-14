@@ -109,7 +109,7 @@ class Handler():
 
             parameter_prefix = '-'
             # compile regex for parameter/argument pairs
-            parameter_argument_pair: re.Pattern = re.compile(rf'{parameter_prefix}[\w]+[\s]+[\w\d\s<!@>]+\b')
+            parameter_argument_pair: re.Pattern = re.compile(rf'{parameter_prefix}[\w]+[\s]+[\w\d\s<!@>?\=\:\/\.]+\b')
             prefixed_parameter: re.Pattern = re.compile(rf'^{parameter_prefix}')
 
             # find all substrings that start with the parameter prefix and have arguments
