@@ -116,8 +116,10 @@ class Handler():
             parameter_matches: List[str] = re.findall(parameter_argument_pair, message)
             # strip the parameter prefix from each parameter/argument combo
             parameter_matches: List[str] = [re.sub(prefixed_parameter, '', parameter_match) for parameter_match in parameter_matches]
-            # strip any mention strings down to the author's id
+            # strip any user mention strings down to the author's id
             parameter_matches: List[str] = [re.sub(r'<@!', '', parameter_match) for parameter_match in parameter_matches]
+            # strip any voice channel mention strings down to the channel's id
+            parameter_matches: List[str] = [re.sub(r'<#', '', parameter_match) for parameter_match in parameter_matches]
             # split the argument/parameter combo into tuple(parameter, argument)
             arguments: List[str] = [tuple(parameter_match.split(maxsplit=1)) for parameter_match in parameter_matches]
             # convert list of tuples to dictionary
