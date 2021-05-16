@@ -1,5 +1,5 @@
 from configparser import DuplicateSectionError
-from router.error.configuration import ConfigurationGetError, ConfigurationSectionError, ConfigurationSetError
+from router.error.configuration import ConfigurationEmptyEntryError, ConfigurationGetError, ConfigurationMissingEntryError, ConfigurationSectionError, ConfigurationSetError
 from router.configuration.configuration import Configuration
 
 class UXStore(Configuration):
@@ -30,8 +30,8 @@ class UXStore(Configuration):
     def prefix(self):
         try:
             return self.get_character(self.section, 'prefix')
-        except ValueError as valueError:
-            raise ConfigurationGetError('prefix', valueError)
+        except ConfigurationEmptyEntryError:
+            raise
     @prefix.setter
     def prefix(self, prefix: str):
         try:
@@ -43,8 +43,8 @@ class UXStore(Configuration):
     def owner(self):
         try:
             return self.get_integer(self.section, 'owner')
-        except ValueError as valueError:
-            raise ConfigurationGetError('owner', valueError)
+        except ConfigurationEmptyEntryError:
+            raise
     @owner.setter
     def owner(self, owner_id: int):
         try:
@@ -56,8 +56,8 @@ class UXStore(Configuration):
     def components(self) -> str:
         try:
             return self.get_folder(self.section, 'components')
-        except ValueError as valueError:
-            raise ConfigurationGetError('components', valueError)
+        except ConfigurationEmptyEntryError:
+            raise
     @components.setter
     def components(self, components: str):
         try:
@@ -69,8 +69,8 @@ class UXStore(Configuration):
     def logging_channel(self) -> int:
         try:
             return self.get_integer(self.section, 'logging_channel')
-        except ValueError as valueError:
-            raise ConfigurationGetError('logging_channel', valueError)
+        except ConfigurationEmptyEntryError:
+            raise
     @logging_channel.setter
     def logging_channel(self, channel_id: int):
         try:

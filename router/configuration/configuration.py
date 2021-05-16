@@ -2,7 +2,7 @@ import os
 import configparser
 from configparser import DuplicateSectionError
 import pathlib
-from router.error.configuration import ConfigurationGetError, ConfigurationSectionError, ConfigurationTypeError, ConfigurationSetError
+from router.error.configuration import ConfigurationEmptyEntryError, ConfigurationGetError, ConfigurationMissingEntryError, ConfigurationSectionError, ConfigurationTypeError, ConfigurationSetError
 
 class Configuration():
     def __init__(self):
@@ -70,7 +70,7 @@ class Configuration():
         value = self._config.get(section, key, fallback=None)
         # if the key does not exist in the config file
         if value is None:
-            raise ConfigurationGetError(key, Exception(f'Config file does not contain a key in section {section} for key: {key}.'))
+            raise ConfigurationMissingEntryError(key, Exception(f'Config file does not contain a key in section {section} for key: {key}.'))
         # otherwise return value
         else:
             return value
@@ -94,7 +94,7 @@ class Configuration():
         try:
             # if the key's value is empty
             if not value:
-                raise ConfigurationGetError(key, Exception(f'Value for {key} is empty.'))
+                raise ConfigurationEmptyEntryError(key, Exception(f'Value for {key} is empty.'))
             # parse the value to an integer or raise ValueError
             return int(value)
         # if cast to int fails
@@ -123,7 +123,7 @@ class Configuration():
         try:
             # if the key's value is missing
             if not value:
-                raise ConfigurationGetError(key, Exception(f'Value for {key} is empty.'))
+                raise ConfigurationEmptyEntryError(key, Exception(f'Value for {key} is empty.'))
             # get a Path instance from the given folder name
             path = pathlib.Path(value)
             # if the path doesn't exist
@@ -177,7 +177,7 @@ class Configuration():
         try:
             # if the key's value is missing
             if not value:
-                raise ConfigurationGetError(key, Exception(f'Entry for {key} is empty'))
+                raise ConfigurationEmptyEntryError(key, Exception(f'Entry for {key} is empty'))
             return value
         except ValueError as valueError:
             raise ConfigurationTypeError(key, int, valueError)

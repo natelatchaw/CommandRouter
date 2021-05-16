@@ -19,6 +19,26 @@ class ConfigurationSectionError(ConfigurationError):
     def __str__(self):
         return f'An exception occurred while looking up config section \'{self.section}\': {self.internal_error}'
 
+class ConfigurationMissingEntryError(ConfigurationError):
+    """Raised when an exception occurs due to a missing entry in the configuration file."""
+
+    def __init__(self, entry: str, internal_error: Exception):
+        super().__init__(internal_error)
+        self.entry = entry
+
+    def __str__(self):
+        return f'An exception occurred due to a missing entry for {self.entry} in the config: {self.internal_error}'
+
+class ConfigurationEmptyEntryError(ConfigurationError):
+    """Raised when an exception occurs due to a empty entry in the configuration file."""
+
+    def __init__(self, entry: str, internal_error: Exception):
+        super().__init__(internal_error)
+        self.entry = entry
+
+    def __str__(self):
+        return f'An exception occurred due to a empty entry for {self.entry} in the config: {self.internal_error}'
+
 class ConfigurationGetError(ConfigurationError):
     """Raised when an exception occurs while getting data from the configuration file."""
 
