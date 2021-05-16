@@ -1,11 +1,12 @@
-import pathlib
-import inspect
 import importlib.util
+import inspect
+import pathlib
 import re
 from typing import Dict, List
-from router.error.component import CommandAccessError, ComponentLoadError
-from router.error.handler import ComponentLookupError, HandlerError, HandlerLoadError, HandlerPrefixError, ComponentAccessError, HandlerRunError
-from router.component import Component, ComponentError, InvalidInitializerError
+
+from router.component import Component
+from router.error.component import CommandAccessError, ComponentError, InvalidInitializerError
+from router.error.handler import ComponentAccessError, ComponentLookupError, HandlerError, HandlerLoadError, HandlerPrefixError, HandlerRunError
 
 class Handler():
     def __init__(self):        

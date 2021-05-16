@@ -1,3 +1,4 @@
+from router.error.configuration import ConfigurationError
 from router.configuration.tokenstore import TokenStore
 from router.configuration.uxstore import UXStore
 
@@ -33,9 +34,9 @@ class Settings():
         entry_name = 'components'
         try:
             return self._uxStore.components
-        except ValueError as valueError:
+        except ConfigurationError as configurationError:
             invalidEntry = '\n'.join([
-                str(valueError),
+                str(configurationError),
                 f'Please insert a valid {entry_name} path in the config file.'
             ])
             raise ValueError(invalidEntry)
@@ -48,7 +49,7 @@ class Settings():
         entry_name = 'mode'
         try:
             return self._tokenStore.mode
-        except ValueError:
+        except ConfigurationError as configurationError:
             self._tokenStore.mode = ''
             missingMode = ' '.join([
                 f'No token {entry_name} selector was found in the config.',
@@ -69,7 +70,7 @@ class Settings():
     def token(self):
         try:
             return self._tokenStore.get_token(self.mode)
-        except ValueError as valueError:
+        except ConfigurationError as configurationError:
             self._tokenStore.add_token(self.mode, '')
             missingToken = ' '.join([
                 f'No config entry found with tag \'{self.mode}\'.',
@@ -91,9 +92,9 @@ class Settings():
         entry_name = 'logging_channel'
         try:
             return self._uxStore.logging_channel
-        except ValueError as valueError:
+        except ConfigurationError as configurationError:
             invalidEntry = '\n'.join([
-                str(valueError),
+                str(configurationError),
                 f'Please insert a valid {entry_name} id in the config file.'
             ])
             raise ValueError(invalidEntry)

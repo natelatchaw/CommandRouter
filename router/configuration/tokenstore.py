@@ -1,4 +1,5 @@
 from configparser import DuplicateSectionError
+from router.error.configuration import ConfigurationGetError, ConfigurationSectionError
 from router.configuration.configuration import Configuration
 
 class TokenStore(Configuration):
@@ -12,7 +13,7 @@ class TokenStore(Configuration):
             # add a section to the config file
             self.add_section(self.section)
         # if the section already exists
-        except (ValueError, DuplicateSectionError):
+        except ConfigurationSectionError:
             # silent abort of section creation
             pass
         finally:
@@ -38,7 +39,7 @@ class TokenStore(Configuration):
             # get the mode value from the config file
             mode = self.get_key_value(default_section, entry_name)
             if mode == '':
-                raise TypeError(f'Entry for token mode was empty.')
+                raise ConfigurationGetError(mode, Exception(f'Entry for token mode was empty.'))
             return mode
         except (ValueError, TypeError) as error:
             ##print('Tried to get entry for token mode but the entry either did not exist or was empty.')
@@ -68,11 +69,11 @@ class TokenStore(Configuration):
         try:
             # if the provided tag is None
             if tag is None:
-                raise TypeError(f'Tag to retreive token entry for was type {type(tag)}.')
+                raise ConfigurationGetError(tag, Exception(f'Tag to retreive token entry for was type {type(tag)}.'))
             # get the token from the config file
             token = self.get_key_value(self.section, tag)
             if token == '':
-                raise TypeError(f'Token entry for tag {tag} was empty.')
+                raise ConfigurationGetError(tag, Exception(f'Token entry for tag {tag} was empty.'))
             return token
         except (ValueError, TypeError) as error:
             raise error

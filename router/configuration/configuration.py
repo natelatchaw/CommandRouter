@@ -2,6 +2,7 @@ import os
 import configparser
 from configparser import DuplicateSectionError
 import pathlib
+from router.error.configuration import ConfigurationGetError, ConfigurationSectionError, ConfigurationTypeError, ConfigurationSetError
 
 class Configuration():
     def __init__(self):
@@ -32,13 +33,15 @@ class Configuration():
             self.write()
         # if the section name is not a string
         except TypeError:
-            raise TypeError(f'Cannot add section {section}: {section} is not a string value.')
+            raise ConfigurationSectionError(section, (f'Cannot add section {section}: {section} is not a string value.'))
         # if the default section name is passed
         except ValueError:
-            pass
+            ##raise ConfigurationSectionError(section, Exception(f'Cannot add default section: default section already exists.'))
+            return
         # if a section name that already exists is passed
-        except DuplicateSectionError:
-            raise DuplicateSectionError(f'Cannot add section {section}: {section} already exists.')
+        except DuplicateSectionError as duplicateSectionError:
+            ##raise ConfigurationSectionError(section, Exception(f'Cannot add section {section}: {section} already exists.'))
+            return
 
     def set_key_value(self, section, key, value):
         """
@@ -67,7 +70,7 @@ class Configuration():
         value = self._config.get(section, key, fallback=None)
         # if the key does not exist in the config file
         if value is None:
-            raise ValueError(f'Config file does not contain a key in section {section} for key: {key}.')
+            raise ConfigurationGetError(key, Exception(f'Config file does not contain a key in section {section} for key: {key}.'))
         # otherwise return value
         else:
             return value
@@ -91,16 +94,17 @@ class Configuration():
         try:
             # if the key's value is empty
             if not value:
-                raise ValueError(f'Value for {key} is empty.')
+                raise ConfigurationGetError(key, Exception(f'Value for {key} is empty.'))
             # parse the value to an integer or raise ValueError
             return int(value)
-        except ValueError:
-            raise
+        # if cast to int fails
+        except ValueError as valueError:
+            raise ConfigurationTypeError(key, int, valueError)
 
     def set_integer(self, section: str, key: str, value: int):
         # if the value is not an integer
         if not isinstance(value, int):
-            raise ValueError(f'The {key} key must be of type {int}.')
+            raise ConfigurationSetError(key, Exception(f'The {key} key must be of type {int}.'))
         # add the given value to the given key in the given section
         self.set_key_value(section, key, str(value))
 
@@ -119,7 +123,7 @@ class Configuration():
         try:
             # if the key's value is missing
             if not value:
-                raise ValueError(f'Entry for {key} is empty.')
+                raise ConfigurationGetError(key, Exception(f'Value for {key} is empty.'))
             # get a Path instance from the given folder name
             path = pathlib.Path(value)
             # if the path doesn't exist
@@ -127,8 +131,9 @@ class Configuration():
                 # create the directory
                 path.mkdir(parents=True, exist_ok=True)
             return value
-        except ValueError:
-            raise
+        except ValueError as valueError:
+            raise ConfigurationTypeError(key, int, valueError)
+
 
     def set_folder(self, section: str, key: str, value: str):
         # get a Path instance from the provided string path
@@ -144,18 +149,19 @@ class Configuration():
         try:
             value = self.get_string(section, key)
             if not (isinstance(value, str) and len(value) == 1):
-                raise ValueError(f'The value for {key} must be a single character.')
+                raise ConfigurationGetError(key, Exception(f'The value for {key} must be a single character.'))
             return value
-        except ValueError:
-            raise
+        except ValueError as valueError:
+            raise ConfigurationTypeError(key, int, valueError)
 
     def set_character(self, section: str, key: str, value: str):
         # if the given value is not a character
         if not (isinstance(value, str) and len(value) == 1):
-            raise ValueError(f'The value for {key} must be a single character.')
+            raise ConfigurationSetError(key, Exception(f'The value for {key} must be a single character.'))
         # add the given value to the given key in the given section
         self.set_string(section, key, value)
 
+    
     def get_string(self, section: str, key: str):
         # if the config is missing the given section
         if not self._config.has_section(section):
@@ -171,10 +177,10 @@ class Configuration():
         try:
             # if the key's value is missing
             if not value:
-                raise ValueError(f'Entry for {key} is empty')
+                raise ConfigurationGetError(key, Exception(f'Entry for {key} is empty'))
             return value
-        except ValueError:
-            raise
+        except ValueError as valueError:
+            raise ConfigurationTypeError(key, int, valueError)
 
     def set_string(self, section: str, key: str, value: str):
         # add the given value to the given key in the given section
