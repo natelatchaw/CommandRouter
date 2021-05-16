@@ -34,12 +34,19 @@ class Settings():
         entry_name = 'components'
         try:
             return self._uxStore.components
-        except ConfigurationError as configurationError:
-            invalidEntry = '\n'.join([
-                str(configurationError),
-                f'Please insert a valid {entry_name} path in the config file.'
+        except ConfigurationMissingEntryError as configurationMissingEntryError:
+            self._uxStore.components = ''
+            missing_entry = ' '.join([
+                f'No {entry_name} selector was found in the config, a selector has been generated for you.',
+                f'Please supply a valid value for the {entry_name} entry in the config file.'
             ])
-            raise ConfigurationEmptyEntryError(entry_name, ValueError(invalidEntry))
+            raise ConfigurationMissingEntryError(entry_name, Exception(missing_entry))
+        except ConfigurationEmptyEntryError:
+            empty_entry = ' '.join([
+                f'The {entry_name} selector in the config contained an empty string.',
+                f'Please supply a valid value for the {entry_name} entry in the config file.'
+            ])
+            raise ConfigurationEmptyEntryError(entry_name, Exception(empty_entry))
     @components.setter
     def components(self, components):
         self._uxStore.components = components
@@ -51,17 +58,17 @@ class Settings():
             return self._tokenStore.mode
         except ConfigurationMissingEntryError:
             self._tokenStore.mode = ''
-            missingMode = ' '.join([
-                f'No token {entry_name} selector was found in the config.',
-                f'An selector entry has been created for you to specify the token {entry_name}.'
+            missing_entry = ' '.join([
+                f'No {entry_name} selector was found in the config, a selector has been generated for you.',
+                f'Please supply a valid value for the {entry_name} entry in the config file.'
             ])
-            raise ConfigurationMissingEntryError(entry_name, Exception(missingMode))
+            raise ConfigurationMissingEntryError(entry_name, Exception(missing_entry))
         except ConfigurationEmptyEntryError:
-            emptyToken = ' '.join([
-                f'The token {entry_name} selector in the config contained an empty string.',
-                f'Please specify a token {entry_name}.'
+            empty_entry = ' '.join([
+                f'The {entry_name} selector in the config contained an empty string.',
+                f'Please supply a valid value for the {entry_name} entry in the config file.'
             ])
-            raise ConfigurationEmptyEntryError(entry_name, Exception(emptyToken))
+            raise ConfigurationEmptyEntryError(entry_name, Exception(empty_entry))
     @mode.setter
     def mode(self, mode):
         self._tokenStore.mode = mode
@@ -92,12 +99,18 @@ class Settings():
         entry_name = 'logging_channel'
         try:
             return self._uxStore.logging_channel
-        except ConfigurationEmptyEntryError as configurationError:
-            invalidEntry = '\n'.join([
-                str(configurationError),
-                f'Please insert a valid {entry_name} id in the config file.'
+        except ConfigurationEmptyEntryError:
+            missing_entry = ' '.join([
+                f'No {entry_name} selector was found in the config, a selector has been generated for you.',
+                f'Please supply a valid value for the {entry_name} entry in the config file.'
             ])
-            raise ConfigurationEmptyEntryError(entry_name, Exception(invalidEntry))
+            raise ConfigurationMissingEntryError(entry_name, Exception(missing_entry))
+        except ConfigurationEmptyEntryError:
+            empty_entry = ' '.join([
+                f'The {entry_name} selector in the config contained an empty string.',
+                f'Please supply a valid value for the {entry_name} entry in the config file.'
+            ])
+            raise ConfigurationEmptyEntryError(entry_name, Exception(empty_entry))
     @logging_channel.setter
     def logging_channel(self, channel_id: int):
         self._uxStore.logging_channel = channel_id

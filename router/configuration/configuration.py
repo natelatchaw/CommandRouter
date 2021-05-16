@@ -87,7 +87,7 @@ class Configuration():
         try:
             # get the value from the config file
             value = self.get_key_value(section, key)
-        except ValueError:
+        except ConfigurationMissingEntryError:
             # create the key if it is missing
             self.set_key_value(section, key, '')
             value = None
@@ -116,7 +116,7 @@ class Configuration():
         try:
             # get the value from the config
             value = self.get_key_value(section, key)
-        except ValueError:
+        except ConfigurationMissingEntryError:
             # create the key if it is missing
             self.set_key_value(section, key, '')
             value = None
@@ -170,7 +170,7 @@ class Configuration():
         try:
             # get the value from the config
             value = self.get_key_value(section, key)
-        except ValueError:
+        except ConfigurationMissingEntryError:
             # create the key if it is missing
             self.set_key_value(section, key, '')
             value = None

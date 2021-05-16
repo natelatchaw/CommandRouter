@@ -30,7 +30,7 @@ class TokenStore(Configuration):
     @property
     def mode(self):
         default_section = 'DEFAULT'
-        entry_name = 'token'
+        entry_name = 'mode'
         # if the config is missing the TOKEN section
         if not self._config.has_section(default_section):
             # add the TOKEN section to the config
@@ -47,7 +47,7 @@ class TokenStore(Configuration):
     @mode.setter
     def mode(self, mode):
         default_section = 'DEFAULT'
-        key = 'token'
+        key = 'mode'
         # add the token mode settings pair to the TOKEN section
         self.set_key_value(default_section, key, mode)
 
