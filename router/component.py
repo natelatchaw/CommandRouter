@@ -3,7 +3,7 @@ import inspect
 from inspect import Signature, BoundArguments
 from typing import Dict, List
 from router.command import Command
-from router.error.component import CommandAccessError
+from router.error.component import CommandAccessError, InvalidCommandError, InvalidInitializerError, ParameterMismatchError
 
 class Component():
 
@@ -99,37 +99,3 @@ class Component():
         # not supported yet
         if Command.is_asynchronous_method(command):
             await command(*arguments.args, **arguments.kwargs)
-
-
-class ComponentError(Exception):
-    """Base exception class for component exceptions."""
-    pass
-
-class InvalidInitializerError(ComponentError):
-    """Raised when a component class is provided that requires initialization parameters."""
-
-    def __init__(self, component_name: str):
-        self.component_name = component_name
-
-    def __str__(self):
-        return f'Component {self.component_name} requires initialization parameters, which are not supported.'
-
-class InvalidCommandError(ComponentError):
-    """Raised when an attempt to access a non-existent command is made."""
-    
-    def __init__(self, component_name, command_name):
-        self.component_name = component_name
-        self.command_name = command_name
-
-    def __str__(self):
-        return f'Command {self.command_name} does not exist in component {self.component_name}.'
-
-class ParameterMismatchError(ComponentError):
-    """Raised when arguments provided to a command do not match its signature."""
-    
-    def __init__(self, command_signature: Signature, argument_signature: Signature):
-        self.command_signature = command_signature
-        self.argument_signature = argument_signature
-
-    def __str__(self):
-        return f'Invalid arguments provided to command. Expected {self.command_signature}; received {self.argument_signature}.'
