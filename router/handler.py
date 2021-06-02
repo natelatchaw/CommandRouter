@@ -9,6 +9,14 @@ from router.error.component import CommandAccessError, ComponentError, InvalidIn
 from router.error.handler import ComponentAccessError, ComponentLookupError, HandlerError, HandlerLoadError, HandlerPrefixError, HandlerRunError
 
 class Handler():
+
+    @property
+    def features(self) -> Dict[str, str]:
+        return {
+            'HDKI': 'Hyphen Delimited Keyword Injection',
+            'SDDMI': 'Single Directory Dynamic Module Import',
+        }
+
     def __init__(self):        
         # map command names to component names
         self._commands: Dict[str, str] = dict()
