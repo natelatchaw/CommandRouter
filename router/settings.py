@@ -3,9 +3,10 @@ from router.configuration.tokenstore import TokenStore
 from router.configuration.uxstore import UXStore
 
 class Settings():
-    def __init__(self):
-        self._tokenStore = TokenStore()
-        self._uxStore = UXStore()
+    def __init__(self, name: str):
+        self.name = name
+        self._tokenStore = TokenStore(name)
+        self._uxStore = UXStore(name)
 
     @property
     def prefix(self):

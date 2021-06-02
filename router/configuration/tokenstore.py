@@ -4,8 +4,8 @@ from router.configuration.configuration import Configuration
 
 class TokenStore(Configuration):
     
-    def __init__(self):
-        super().__init__()
+    def __init__(self, name: str):
+        super().__init__(name)
         # define section name
         self._section = 'TOKENS'
         # try to initialize section in config file

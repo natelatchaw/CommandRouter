@@ -3,8 +3,8 @@ from router.error.configuration import ConfigurationEmptyEntryError, Configurati
 from router.configuration.configuration import Configuration
 
 class UXStore(Configuration):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, name: str):
+        super().__init__(name)
         # define section name
         self._section = 'UX'
         # try to initialize section in config file
