@@ -5,9 +5,10 @@ import pathlib
 from router.error.configuration import ConfigurationEmptyEntryError, ConfigurationGetError, ConfigurationMissingEntryError, ConfigurationSectionError, ConfigurationTypeError, ConfigurationSetError
 
 class Configuration():
-    def __init__(self):
+    def __init__(self, name: str):
         self._config = configparser.ConfigParser()
-        self.file = os.path.abspath(f'config.ini')
+        self.name = name
+        self.file = os.path.abspath(f'{name}.ini')
 
         if not os.path.exists(self.file):
             with open(self.file, 'w') as configFile:
