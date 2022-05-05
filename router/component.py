@@ -1,72 +1,80 @@
-import types
+import logging
 import inspect
 from inspect import Signature, BoundArguments
-from typing import Dict, List
+from types import MethodType
+from typing import Any, Dict, List, Tuple, AnyStr
 from router.command import Command
-from router.error.component import CommandAccessError, InvalidCommandError, InvalidInitializerError, ParameterMismatchError
+from router.error.component import ComponentAccessError, InvalidCommandError, InvalidInitializerError, ParameterMismatchError
 
 class Component():
+    """
+    A container representation for a group of commands.
+    """
 
-    def __init__(self, name: str, obj: object):
-        # get the signature of the object's initializer
+    def __init__(self, name: str, obj: type):
+        # get the signature of the type's initializer
         initializer_signature: Signature = inspect.signature(obj.__init__)
-        # if the initializer requires more parameters than self
+        # if the initializer requires parameters other than self
         if len(initializer_signature.parameters) > 1:
             # raise error
             raise InvalidInitializerError(name)
 
         # set component name
-        self.name = name
-        # instantiate obj and store
-        self.instance = obj()
-        # instantiate commands dictionary
-        self.commands: Dict[str, Signature] = dict()
-        # get each method member in the class instance
-        members = [member for member in inspect.getmembers(self.instance, inspect.ismethod)]
-        # iterate over all methods in the class instance
-        for name, member in members:
-            # if method is a dunder method
-            if name.startswith('__'):
-                pass
-            # otherwise
-            else:
-                # insert name, signature pair into commands dictionary
-                self.commands[name] = Command(name, member)
+        self.name: str = name
+        logging.debug('%s component: beginning initialization', self.name)
         # get the docstring for the class
-        self.doc = obj.__doc__
+        self.doc: str = obj.__doc__
+        # instantiate obj and store
+        self.instance: Any = obj()
+        logging.debug('%s component: initialized instance with ID %s', self.name, id(self.instance))
+        # populate commands dictionary
+        self.commands: List[Command] = self.package()
+        logging.debug('%s component: initialized command dictionary', self.name)
+        
+        # TODO: REMOVE self.commands: Dict[str, Signature] = dict()
 
-        print(f'Loaded {len(self.commands)} commands from {self.name} component.')
 
-    def get_command_signature(self, command_name: str) -> Signature:
+    def package(self) -> List[Command]:
         """
-        Retrieve a command signature from the component.
+        """
+
+        logging.debug('%s component: beginning command search', self.name)
+        # get each method member in the class instance
+        members: List[Tuple[str, MethodType]] = [member for member in inspect.getmembers(self.instance, inspect.ismethod)]
+        logging.debug('%s component: found %s available members', self.name, len(members))
+        logging.debug('%s module: beginning command initialization process', self.name)
+        # initialize command from each member
+        commands: List[Command] = [Command(name, method_object) for name, method_object in members if not name.startswith('__')]
+        logging.debug('%s component: found %s commands', self.name, len(commands))
+        # return command list
+        return commands
+
+
+    def get_command(self, command_name: str) -> Command:
+        """
+        Retrieve a command's signature from the component.
 
         Parameters:
-            command_name: str - the command's name
+            command_name: str - the name of the command
 
         Throws:
-            CommandAccessError - the component's commands dict doesn't contain an entry for command_name
-
-        Note:
-            Annotated types can be retreived from signatures, if available.
-            for parameter in signature.parameters.values():
-                print(parameter.annotation)
+            CommandAccessError - if the command list does not contain exactly one matching command
         """
-        # try to get the signature from the commands dictionary
-        try:
-            command: Command = self.commands[command_name]
-            return command.signature
-        # if the component doesn't contain a command named 'command_name'
-        except KeyError as keyError:
-            raise CommandAccessError(self.name, command_name, keyError)
+        
+        # find commands matching the provided command_name
+        commands: List[Command] = [command for command in self.commands if command.name == command_name]
+        
+        # if exactly one command was found
+        if len(commands) == 1:
+            # return the command's signature
+            return commands[0]
 
-    def get_command_callable(self, command_name: str) -> types.MethodType:
-        """
-        Retrieve a command callable from the component.
+        # if zero or many commands were found
+        else:
+            # raise an error
+            raise ComponentAccessError(self.name, command_name, f'{len(commands)} commands found for \'{command_name}\'')
 
-        Parameters:
-            command_name: str - the command's name
-        """
+
         # try to get the command from the component instance
         try:
             return getattr(self.instance, command_name)
@@ -74,28 +82,29 @@ class Component():
         except AttributeError:
             raise InvalidCommandError(self.name, command_name)
 
+
     async def run_command(self, command_name: str, arguments: BoundArguments):
         """
         Run the command given the name and the arguments.
+
+        Throws:
+            - CommandAccessError: if the target command could not be determined.
+            - ParameterMismatchError: if invalid parameters are provided to the target command.
         """
-        try:
-            # get the command's callable
-            command = self.get_command_callable(command_name)
-            # the the command's signature
-            signature = self.get_command_signature(command_name)
-        # if the component doesn't contain a command named 'command_name'
-        except InvalidCommandError:
-            raise
+        
+        # get the command
+        command: Command = self.get_command(command_name)
 
         # if the provided arguments signature does not match
-        if arguments.signature.parameters != signature.parameters:
-            raise ParameterMismatchError(signature, arguments.signature)
+        if arguments.signature.parameters != command.signature.parameters:
+            raise ParameterMismatchError(command.signature, arguments.signature)
 
         # if the called command is synchronous
-        if Command.is_synchronous_method(command):
+        if Command.is_synchronous_method(command.method):
             # call command with parameters
-            command(*arguments.args, **arguments.kwargs)
+            command.method(*arguments.args, **arguments.kwargs)
 
-        # not supported yet
-        if Command.is_asynchronous_method(command):
-            await command(*arguments.args, **arguments.kwargs)
+        # if the called command is synchronous
+        if Command.is_asynchronous_method(command.method):
+            # call command with parameters
+            await command.method(*arguments.args, **arguments.kwargs)

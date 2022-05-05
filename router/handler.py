@@ -1,12 +1,23 @@
 import importlib.util
 import inspect
+import logging
 import pathlib
 import re
-from typing import Dict, List
+from importlib.machinery import ModuleSpec
+from types import ModuleType
+from typing import Dict, List, Tuple
+from weakref import ref
+from router.command import Command
 
 from router.component import Component
-from router.error.component import CommandAccessError, ComponentError, InvalidInitializerError
-from router.error.handler import ComponentAccessError, ComponentLookupError, HandlerError, HandlerLoadError, HandlerPrefixError, HandlerRunError
+from router.error.component import (ComponentAccessError, ComponentError,
+                                    InvalidInitializerError)
+from router.error.handler import (HandlerAccessError, HandlerLookupError,
+                                  HandlerError, HandlerLoadError,
+                                  HandlerPrefixError, HandlerExecutionError)
+from router.registration import Registration
+
+logging.info('TOP LEVEL STATEMENT!')
 
 class Handler():
 
@@ -17,70 +28,147 @@ class Handler():
             'SDDMI': 'Single Directory Dynamic Module Import',
         }
 
-    def __init__(self):        
-        # map command names to component names
-        self._commands: Dict[str, str] = dict()
-        # map component names to components
-        self._components: Dict[str, Component] = dict()
+    def __init__(self):
+        # initialize the registrations dictionary
+        self._registrations: List[Registration] = list()
 
-    def load(self, components_folder: pathlib.Path=None):
-        # if the components folder path was not provided
-        if not components_folder:
-            raise HandlerLoadError(components_folder, TypeError('A components folder was not provided.'))
-        # generate and resolve path of components folder
-        components_path = pathlib.Path(components_folder).resolve()
-        # if the provided folder doesn't exist
-        if not components_path.exists():
+        # map command names to component names
+        ##self._commands: Dict[str, str] = dict()
+        # map component names to components
+        ##self._components: Dict[str, Component] = dict()
+
+    def load(self, directory: pathlib.Path = None, extension: str = '.py'):
+        """
+        Loads any compatible modules from the provided directory as a
+        series of Components.
+
+        Parameters:
+            directory (pathlib.Path): The path of the directory to load.
+        """
+        
+        # if the provided directory path is None
+        if not directory:
             # raise exception
-            raise HandlerLoadError(components_path, f'Folder \'{components_path.name}\' does not exist at path {components_path.absolute().parent}.')
-        print(f'Looking for components in {components_path}...')
+            raise HandlerLoadError(directory, 'Failed to load modules; no directory was provided.')
+
+        # resolve the provided directory path
+        reference: pathlib.Path = directory.resolve()
+
+        logging.debug('Resolved provided directory to %s', str(reference))
+
+        # if the provided directory doesn't exist
+        if not reference.exists():
+            # raise exception
+            raise HandlerLoadError(reference, f'\'{reference.name}\' does not exist at path {reference.parent}')
+
+        logging.debug('Searching %s for %s files...', str(reference), extension)
 
         # get all python file paths in the components directory
-        modules: List[pathlib.Path] = [module for module in components_path.glob('*.py') if module.is_file()]
+        file_references: List[pathlib.Path] = [file for file in reference.glob(f'*{extension}') if file.is_file()]
+
+        logging.debug('Found %s %s files in %s', len(file_references), extension, str(reference))
+
         # for each python file path
-        for module in modules:
+        for file_reference in file_references:
             try:
-                # generate ModuleInterface object from module path
-                packaged_components: List[Component] = self.package(module)
-                # for each packaged module in the list of packaged modules
-                for packaged_component in packaged_components:
-                    # add Component object to Handler's tracked components
-                    self.add(packaged_component)
+                # get the module from the file
+                module: ModuleType = self.getModule(file_reference)
+                # package the module into a list of components
+                components: List[Component] = self.package(module)
+
+                # for each obtained component
+                for component in components:
+                    # add the component
+                    self.add(component)
+
             # if an error occurs with component initialization
             except HandlerLoadError as handlerLoadError:
-                print(handlerLoadError)
+                logging.error(handlerLoadError)
+
             # if the component's initializer is not supported
             except InvalidInitializerError as invalidInitializerError:
-                print(invalidInitializerError)
-            
-    def package(self, module: pathlib.Path) -> List[Component]:
+                logging.error(invalidInitializerError)
+                
+
+    def getModule(self, reference: pathlib.Path) -> ModuleType:
+        """
+        Import a module given the containing file's path.
+
+        Notes:
+            - Module spec is obtained via `importlib.util.spec_from_file_location`
+            - Module is generated from spec via `importlib.util.module_from_spec`
+        """
+
+        logging.info('%s module: found at %s', reference.stem, str(reference))
+
         # get module spec from module name and path
-        spec = importlib.util.spec_from_file_location(module.stem, module.resolve())
+        spec: ModuleSpec = importlib.util.spec_from_file_location(reference.stem, reference.resolve())
+        logging.debug('%s module: obtained ModuleSpec', spec.name)
+
         # create the module from the spec
-        created_module = importlib.util.module_from_spec(spec)
+        module: ModuleType = importlib.util.module_from_spec(spec)
+        logging.debug('%s module: created Module from ModuleSpec', spec.name)
+
         try:
+            logging.debug('%s module: initializing...', spec.name)
             # execute the created module
-            spec.loader.exec_module(created_module)
+            spec.loader.exec_module(module)
+            logging.debug('%s module: initialization complete', spec.name)
+
         # if the module tries to import a module that hasn't been installed
         except (ImportError, ModuleNotFoundError) as error:
             # raise exception
-            raise HandlerLoadError(module, error)
-        # get each class member in the module (excluding classes imported from other modules)
-        members = [member for member in inspect.getmembers(created_module, inspect.isclass) if member[1].__module__ == created_module.__name__]
-        # initialize Component object for each class in module
-        components: List[Component] = [Component(component_name, component_class) for component_name, component_class in members]
+            raise HandlerLoadError(reference, error)
+        
+        # return the module
+        return module
+
+    def package(self, module: ModuleType) -> List[Component]:
+        """
+        Package a module as a list of components.
+        """
+
+        logging.debug('%s module: beginning component search', module.__name__)
+
+        # get each type member in the module instance
+        members: List[Tuple[str, type]] = [member for member in inspect.getmembers(module, inspect.isclass)]
+        logging.debug('%s module: found %s available members', module.__name__, len(members))
+
+        logging.debug('%s module: beginning component initialization process', module.__name__)
+        # initialize component from each member (excluding classes imported from other modules)
+        components: List[Component] = [Component(name, class_object) for name, class_object in members if class_object.__module__ == module.__name__]
+        logging.info('%s module: initialized %s components', module.__name__, len(components))
+        
+        # return component list
         return components
 
     def add(self, component: Component):
-        # for each command's name in the component
-        for command_name in component.commands.keys():
-            # TODO: command_name not guaranteed to be unique across components, overwriting is possible here
-            # add the command-to-component mapping
-            self._commands[command_name] = component.name
-        # add the component-name-to-component mapping
-        self._components[component.name] = component
+        """
+        """
 
-    def get(self, command_name: str) -> Component:
+        for command in component.commands:
+            # generate a command registration
+            registration: Registration = Registration(component, command)
+            # add registration to registrations list
+            self._registrations.append(registration)
+
+    def get(self, command_name: str) -> Registration:
+        """
+        """
+
+        # get all registrations containing a command with a matching name
+        registrations: List[Registration] = [registration for registration in self._registrations if registration.command.name == command_name]
+        # if exactly one registration was found
+        if len(registrations) == 1:
+            # return the registration's command         
+            return registrations[0]
+        # if zero or many registrations were found
+        else:
+            # raise lookup error
+            raise HandlerLookupError(command_name, f'{len(registrations)} registrations found for \'{command_name}\'')
+
+
+
         """
         Get a component instance from the components dict
 
@@ -91,11 +179,11 @@ class Handler():
         try:
             component_name = self._commands[command_name]
         except KeyError:
-            raise ComponentLookupError(command_name, Exception(f'Command \'{command_name}\' could not be found.'))
+            raise HandlerLookupError(command_name, Exception(f'Command \'{command_name}\' could not be found.'))
         try:
             component: Component = self._components[component_name]
         except KeyError:
-            raise ComponentAccessError(component_name, Exception(f'Component \'{component_name}\' could not be found.'))
+            raise HandlerAccessError(component_name, Exception(f'Component \'{component_name}\' could not be found.'))
         return component
 
     async def process(self, prefix: str, message: str, *, optionals: Dict[str, object]=dict()):
@@ -163,25 +251,20 @@ class Handler():
             ComponentAccessError - upon failure to get component from components dict
             HandlerRunError - upon failure to bind args and kwargs to command signature
         """
-        # get the relevant component
-        component = self.get(command_name)
-        try:
-            # get the command signature from the component
-            command_signature: inspect.Signature = component.get_command_signature(command_name)
-        except CommandAccessError:
-            raise
+        # get the relevant command
+        registration: Registration = self.get(command_name)
         
         # for each optional keyvalue pair passed in through contructor
         for optional_key, optional_value in optionals.items():
             # if the command's signature contains a parameter matching the optional key
-            if optional_key in command_signature.parameters.keys():
+            if optional_key in registration.command.signature.parameters.keys():
                 # add the correlated optional value to kwargs
                 kwargs[optional_key] = optional_value
 
         try:
             # bind the processed arguments to the command signature
-            bound_arguments = command_signature.bind(*args, **kwargs)
+            bound_arguments = registration.command.signature.bind(*args, **kwargs)
             # run the command with the assembled signature
-            await component.run_command(command_name, bound_arguments)
+            await registration.run(bound_arguments)
         except TypeError as typeError:
-            raise HandlerRunError(command_name, typeError)
+            raise HandlerExecutionError(command_name, typeError)
