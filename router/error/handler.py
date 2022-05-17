@@ -5,11 +5,26 @@ class HandlerError(Exception):
     Base exception class for handler related errors.
     """
 
-    def __init___(self, message: str = None):
-        self.message: str | None = message if message else "No information provided"
+    @property
+    def message(self) -> str | None:
+        """A message describing the exception at hand"""
+        return self._message
+    @message.setter
+    def message(self, message: str) -> None:
+        self._message = message
 
-    def __init__(self, exception: Exception = None):
-        self.message: str | None = str(exception) if exception else "No information provided"
+    @property
+    def inner_exception(self) -> Exception | None:
+        """The exception that caused the current exception (if available)"""
+        return self._inner_exception
+    @inner_exception.setter
+    def inner_exception(self, exception: Exception) -> None:
+        self._inner_exception = exception
+
+    
+    def __init__(self, message: str, exception: Exception | None = None):
+        self.message = message
+        self.inner_exception = exception
 
     def __str__(self):
         return f'An exception occurred in the handler during message handling: {self.message}'
@@ -17,70 +32,59 @@ class HandlerError(Exception):
 
 class HandlerLoadError(HandlerError):
     """
-    Raised when an exception occurs while loading handler inputs.
+    Raised when an exception occurs while loading handler inputs
     """
 
-    def __init__(self, reference: pathlib.Path, message: str = None):
-        self.reference: pathlib.Path = reference
-        super().__init__(message)
-
-    def __init__(self, reference: pathlib.Path, exception: Exception = None):
-        self.reference: pathlib.Path = reference
-        super().__init__(exception)
-
-    def __str__(self):
-        return f'An exception occurred in the handler while loading \'{self.reference.name}\': {self.message}'
+    def __init__(self, reference: pathlib.Path, details: str, exception: Exception | None = None):
+        message: str = ' '.join([
+            f'Failed to load from \'{reference.name}\': {details}'
+        ])
+        super().__init__(message, exception)
 
 
 class HandlerPrefixError(HandlerError):
     """
-    Raised when the message to process does not begin with the expected prefix.
+    Raised when the message to process does not begin with the expected prefix
     """
 
-    def __init__(self, prefix: str, exception: Exception = None):
-        self.prefix = prefix
-        super().__init__(exception)
-
-    def __str__(self):
-        return f'An exception occurred in the handler while parsing the input for prefix: {self.message}'
+    def __init__(self, prefix: str, details: str, exception: Exception | None = None):
+        message: str = ' '.join([
+            f'Message does not begin with prefix \'{prefix}\': {details}'
+        ])
+        super().__init__(message, exception)
 
 
 class HandlerExecutionError(HandlerError):
     """
-    Raised when an exception occurs during command execution.
+    Raised when an exception occurs during command execution
     """
 
-    def __init__(self, command_name: str, internal_error: Exception):
-        super().__init__(internal_error)
-        self.command_name = command_name
-    
-    def __str__(self):
-        return f'An exception occurred in the handler while trying to execute command \'{self.command_name}\': {self.message}'
-
+    def __init__(self, command_name: str, details: str, exception: Exception | None = None):
+        message: str = ' '.join([
+            f'Failed to execute command {command_name}: {details}'
+        ])
+        super().__init__(message, exception)
+        
 
 class HandlerAccessError(HandlerError):
     """
-    Raised when a component cannot be accessed from the component registry.
+    Raised when a component cannot be accessed from the component registry
     """
 
-    def __init__(self, component_name: str, message: str = None):
-        self.component_name = component_name
-        super().__init__(message)
-
-    def __init__(self, component_name: str, exception: Exception = None):
-        self.component_name = component_name
-        super().__init__(exception)
-
-    def __str__(self):
-        return f'An exception occurred in the handler while trying to access component \'{self.component_name}\': {self.message}'
-
+    def __init__(self, component_name: str, details: str, exception: Exception | None = None):
+        message: str = ' '.join([
+            f'Failed to access component {component_name}: {details}'
+        ])
+        super().__init__(message, exception)
+        
 
 class HandlerLookupError(HandlerError):
-    """Raised when a component cannot be looked up by a command name."""
+    """
+    Raised when a component cannot be looked up by a command name
+    """
 
-    def __init__(self, command_name: str, exception: Exception = None):
-        self.command_name = command_name
-        super().__init__(exception)
-
-    def __str__(self):
-        return f'An exception occurred in the handler during lookup for command \'{self.command_name}\': {self.message}'
+    def __init__(self, command_name: str, details: str, exception: Exception = None):
+        message: str = ' '.join([
+            f'Failed to lookup command {command_name}: {details}'
+        ])
+        super().__init__(message, exception)

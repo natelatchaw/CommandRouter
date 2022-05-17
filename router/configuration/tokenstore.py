@@ -1,6 +1,5 @@
-from configparser import DuplicateSectionError
-from router.error.configuration import ConfigurationEmptyEntryError, ConfigurationGetError, ConfigurationMissingEntryError, ConfigurationSectionError
 from router.configuration.configuration import Configuration
+from router.error.configuration import EmptyConfigurationEntryError, MissingConfigurationSectionError
 
 class TokenStore(Configuration):
     
@@ -13,7 +12,7 @@ class TokenStore(Configuration):
             # add a section to the config file
             self.add_section(self.section)
         # if the section already exists
-        except ConfigurationSectionError:
+        except MissingConfigurationSectionError:
             # silent abort of section creation
             pass
         finally:
@@ -29,27 +28,31 @@ class TokenStore(Configuration):
 
     @property
     def mode(self):
-        default_section = 'DEFAULT'
-        entry_name = 'mode'
-        # if the config is missing the TOKEN section
+        default_section: str = 'DEFAULT'
+        entry_name: str = 'token'
+        # if the config is missing the designated section
         if not self._config.has_section(default_section):
-            # add the TOKEN section to the config
+            # add the designated section to the config
             self.add_section(default_section)
         try:
             # get the mode value from the config file
-            mode = self.get_key_value(default_section, entry_name)
-            if mode == '':
-                raise ConfigurationEmptyEntryError(mode, Exception(f'Entry for token mode was empty.'))
-            return mode
-        except ConfigurationMissingEntryError:
-            ##print('Tried to get entry for token mode but the entry either did not exist or was empty.')
-            raise
+            value: str = self.get_key_value(default_section, entry_name)
+            # if the value is an empty string
+            if value == '': raise EmptyConfigurationEntryError(entry_name)
+            # return the value
+            return value
+        # if the designated section does not contain the mode key
+        except ValueError:
+            # set the config's key value to an empty string
+            self.set_key_value(default_section, entry_name, str())
+            raise EmptyConfigurationEntryError(entry_name)
     @mode.setter
-    def mode(self, mode):
+    def mode(self, value) -> None:
         default_section = 'DEFAULT'
-        key = 'mode'
-        # add the token mode settings pair to the TOKEN section
-        self.set_key_value(default_section, key, mode)
+        entry_name = 'token'
+        # set the config's key value to the provided value
+        self.set_key_value(default_section, entry_name, value)
+
 
     def add_token(self, tag, token):
         # if the config is missing the token section
@@ -61,19 +64,18 @@ class TokenStore(Configuration):
         # add the tag/token pair to the token section
         self.set_key_value(self.section, tag, token)
 
-    def get_token(self, tag):
+    def get_token(self, tag: str):
         # if the config is missing the token section
         if not self._config.has_section(self.section):
             # add the token section to the config
             self.add_section(self.section)
-        try:
-            # if the provided tag is None
-            if tag is None:
-                raise ConfigurationGetError(tag, Exception(f'Tag to retreive token entry for was type {type(tag)}.'))
-            # get the token from the config file
-            token = self.get_key_value(self.section, tag)
-            if token == '':
-                raise ConfigurationEmptyEntryError(tag, Exception(f'Token entry for tag {tag} was empty.'))
-            return token
-        except ConfigurationMissingEntryError:
-            raise
+
+        try:    
+            # get the value from the config file
+            value: str = self.get_key_value(self.section, tag)
+            # if the value is an empty string
+            if value == '': raise EmptyConfigurationEntryError(tag)
+            # return the value
+            return value
+        except ValueError:
+            raise MissingConfigurationSectionError(tag)

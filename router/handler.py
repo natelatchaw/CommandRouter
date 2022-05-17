@@ -118,7 +118,7 @@ class Handler():
         # if the module tries to import a module that hasn't been installed
         except (ImportError, ModuleNotFoundError) as error:
             # raise exception
-            raise HandlerLoadError(reference, error)
+            raise HandlerLoadError(reference, str(error), error)
         
         # return the module
         return module
