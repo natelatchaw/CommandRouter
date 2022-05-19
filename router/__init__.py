@@ -15,11 +15,11 @@ __author__ = 'Nathan Latchaw'
 
 
 
-#logging.basicConfig(filename='.log', encoding='utf-8', level=logging.DEBUG)
+logging.basicConfig(filename='.log', encoding='utf-8', level=logging.DEBUG)
 
 logger: logging.Logger= logging.getLogger()
 handler: logging.StreamHandler = logging.StreamHandler(sys.stdout)
-formatter: logging.Formatter = logging.Formatter('[%(asctime)s] [%(levelname)s] %(message)s')
+formatter: logging.Formatter = logging.Formatter('[%(asctime)s] [%(pathname)s:%(lineno)d] [%(levelname)s] %(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 logger.setLevel(logging.DEBUG)

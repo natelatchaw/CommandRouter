@@ -4,20 +4,42 @@ import logging
 import pathlib
 import re
 from importlib.machinery import ModuleSpec
+from inspect import BoundArguments
+from pathlib import Path
 from types import ModuleType
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 from weakref import ref
-from router.command import Command
 
+from router.command import Command
 from router.component import Component
 from router.error.component import (ComponentAccessError, ComponentError,
                                     InvalidInitializerError)
-from router.error.handler import (HandlerAccessError, HandlerLookupError,
-                                  HandlerError, HandlerLoadError,
-                                  HandlerPrefixError, HandlerExecutionError)
+from router.error.handler import (HandlerAccessError, HandlerError,
+                                  HandlerExecutionError, HandlerLoadError,
+                                  HandlerLookupError, HandlerPrefixError)
+from router.package import Package
 from router.registration import Registration
 
 logging.info('TOP LEVEL STATEMENT!')
+
+class Entry():
+
+    @property
+    def package(self) -> str:
+        return self._package
+    
+    @property
+    def component(self) -> str:
+        return self._component
+    
+    @property
+    def command(self) -> str:
+        return self._command
+
+    def __init__(self, package: str, component: str, command: str) -> None:
+        self._package: str = package
+        self._component: str = component
+        self._command: str = command
 
 class Handler():
 
@@ -28,53 +50,59 @@ class Handler():
             'SDDMI': 'Single Directory Dynamic Module Import',
         }
 
+    @property
+    def registry(self) -> Dict[str, Entry]:
+        return self._registry
+
     def __init__(self):
-        # initialize the registrations dictionary
-        self._registrations: List[Registration] = list()
+        """"""
 
-        # map command names to component names
-        ##self._commands: Dict[str, str] = dict()
-        # map component names to components
-        ##self._components: Dict[str, Component] = dict()
-
-    def load(self, directory: pathlib.Path = None, extension: str = '.py'):
-        """
-        Loads any compatible modules from the provided directory as a
-        series of Components.
-
-        Parameters:
-            directory (pathlib.Path): The path of the directory to load.
-        """
+        # initialize the registry
+        self._registry: Dict[str, Entry] = dict()
+        # initialize the package dictionary
+        self._packages: Dict[str, Package] = dict()
         
-        # if the provided directory path is None
-        if not directory:
-            # raise exception
-            raise HandlerLoadError(directory, 'Failed to load modules; no directory was provided.')
+
+    def load(self, directory: Path, extension: str = 'py'):
+        """"""
 
         # resolve the provided directory path
-        reference: pathlib.Path = directory.resolve()
-
-        logging.debug('Resolved provided directory to %s', str(reference))
+        directory: Path = directory.resolve()
+        logging.debug('Resolved provided directory to %s', str(directory))
 
         # if the provided directory doesn't exist
-        if not reference.exists():
-            # raise exception
-            raise HandlerLoadError(reference, f'\'{reference.name}\' does not exist at path {reference.parent}')
+        if not directory.exists():
+            raise HandlerLoadError(directory, f'\'{directory.name}\' does not exist at path {directory.parent}')
 
-        logging.debug('Searching %s for %s files...', str(reference), extension)
+        # get all paths for files in the provided directory
+        pattern: str = f'*.{extension}'
+        references: List[Path] = [reference for reference in directory.glob(pattern) if reference.is_file()]
+        logging.debug('Found %s %s files in %s', len(references), extension, str(directory))
 
-        # get all python file paths in the components directory
-        file_references: List[pathlib.Path] = [file for file in reference.glob(f'*{extension}') if file.is_file()]
+        for reference in references:
+            try:
+                package: Package = Package(reference)
+                for component in package.components.values():
+                    for command in component.commands.values():
+                        self._registry[command.name] = Entry(package.name, component.name, command.name)
+            except ImportError as error:
+                logging.warn('Package assembly failed for file %s: %s', reference.name, error)
+            except Exception as error:
+                logging.error(error)
+                raise
+            else:
+                self._packages[package.name] = package
+                
 
-        logging.debug('Found %s %s files in %s', len(file_references), extension, str(reference))
 
+    def unused_function(self):
         # for each python file path
-        for file_reference in file_references:
+        for file_reference in references:
             try:
                 # get the module from the file
-                module: ModuleType = self.getModule(file_reference)
+                module: ModuleType = self.import_module(file_reference)
                 # package the module into a list of components
-                components: List[Component] = self.package(module)
+                components: List[Component] = self.unpack_module(module)
 
                 # for each obtained component
                 for component in components:
@@ -88,9 +116,8 @@ class Handler():
             # if the component's initializer is not supported
             except InvalidInitializerError as invalidInitializerError:
                 logging.error(invalidInitializerError)
-                
 
-    def getModule(self, reference: pathlib.Path) -> ModuleType:
+    def import_module(self, reference: pathlib.Path) -> ModuleType:
         """
         Import a module given the containing file's path.
 
@@ -103,17 +130,17 @@ class Handler():
 
         # get module spec from module name and path
         spec: ModuleSpec = importlib.util.spec_from_file_location(reference.stem, reference.resolve())
-        logging.debug('%s module: obtained ModuleSpec', spec.name)
+        logging.debug('%s module: obtained spec', spec.name)
 
         # create the module from the spec
         module: ModuleType = importlib.util.module_from_spec(spec)
-        logging.debug('%s module: created Module from ModuleSpec', spec.name)
+        logging.debug('%s module: assembled from spec', spec.name)
 
         try:
-            logging.debug('%s module: initializing...', spec.name)
+            logging.debug('%s module: executing...', spec.name)
             # execute the created module
             spec.loader.exec_module(module)
-            logging.debug('%s module: initialization complete', spec.name)
+            logging.debug('%s module: execution complete', spec.name)
 
         # if the module tries to import a module that hasn't been installed
         except (ImportError, ModuleNotFoundError) as error:
@@ -123,9 +150,9 @@ class Handler():
         # return the module
         return module
 
-    def package(self, module: ModuleType) -> List[Component]:
+    def unpack_module(self, module: ModuleType) -> List[Component]:
         """
-        Package a module as a list of components.
+        Unpack a list of components from a module.
         """
 
         logging.debug('%s module: beginning component search', module.__name__)
@@ -136,7 +163,7 @@ class Handler():
 
         logging.debug('%s module: beginning component initialization process', module.__name__)
         # initialize component from each member (excluding classes imported from other modules)
-        components: List[Component] = [Component(name, class_object) for name, class_object in members if class_object.__module__ == module.__name__]
+        components: List[Component] = [Component(class_name, class_object) for class_name, class_object in members if class_object.__module__ == module.__name__]
         logging.info('%s module: initialized %s components', module.__name__, len(components))
         
         # return component list
@@ -242,7 +269,7 @@ class Handler():
         except (HandlerError, ComponentError):
             raise
 
-    async def run(self, command_name: str, args: List, kwargs: Dict[str, str], optionals: Dict[str, object]=dict()):
+    async def run(self, command_name: str, args: List[Any], kwargs: Dict[str, str], optionals: Dict[str, Any] = dict()):
         """
         Run a command given its name, args and kwargs, as well as any optional objects the command requires.
 
@@ -251,20 +278,27 @@ class Handler():
             ComponentAccessError - upon failure to get component from components dict
             HandlerRunError - upon failure to bind args and kwargs to command signature
         """
-        # get the relevant command
-        registration: Registration = self.get(command_name)
+
+        try:
+            entry: Entry = self._registry[command_name]
+            package: Package = self._packages[entry.package]
+            component: Component = package.components[entry.component]
+            command: Command = component.commands[entry.command]
+        except KeyError:
+            logging.warn('Could not find command %s', command_name)
+            raise
         
         # for each optional keyvalue pair passed in through contructor
         for optional_key, optional_value in optionals.items():
             # if the command's signature contains a parameter matching the optional key
-            if optional_key in registration.command.signature.parameters.keys():
+            if optional_key in command.signature.parameters.keys():
                 # add the correlated optional value to kwargs
                 kwargs[optional_key] = optional_value
 
         try:
             # bind the processed arguments to the command signature
-            bound_arguments = registration.command.signature.bind(*args, **kwargs)
+            bound_arguments: BoundArguments = command.signature.bind(*args, **kwargs)
             # run the command with the assembled signature
-            await registration.run(bound_arguments)
+            await command.run(bound_arguments)
         except TypeError as typeError:
             raise HandlerExecutionError(command_name, typeError)
