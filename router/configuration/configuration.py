@@ -1,172 +1,68 @@
-import os
 import configparser
-from configparser import DuplicateSectionError
-import pathlib
+from configparser import ConfigParser
+from pathlib import Path
+from typing import Dict, Iterator, List, MutableMapping
 
-from router.error.configuration import ConfigurationError, ConfigurationWriteError, EmptyConfigurationEntryError, MissingConfigurationEntryError
+from router.configuration.section import Section
 
-class Configuration():
-    def __init__(self, name: str):
-        self._config = configparser.ConfigParser()
-        self.name = name
-        self.file = os.path.abspath(f'{name}.ini')
 
-        if not os.path.exists(self.file):
-            with open(self.file, 'w') as configFile:
-                self._config.write(configFile)
+class Configuration(MutableMapping):
 
-        self._config.read(self.file)
+    def __setitem__(self, key: str, value: Section) -> None:
+        self._sections.__setitem__(key, value)
+        self.__write__()
 
-    def get_config(self):
-        return self._config
-
-    def reload(self):
-        self._config.read(self.file)
-
-    def add_section(self, section):
-        """
-        Adds the given section to the config file.
-        Raises:
-            TypeError if the section parameter is not a string
-            DuplicateSectionError if a section already exists with the name contained in the section parameter
-        """
+    def __getitem__(self, key: str) -> Section:
+        self.__read__()
         try:
-            self._config.add_section(section)
-            self.write()
-        # if the default section name is passed
-        except ValueError:
-            ##raise ConfigurationSectionError(section, Exception(f'Cannot add default section: default section already exists.'))
-            return
-        # if a section name that already exists is passed
-        except DuplicateSectionError as duplicateSectionError:
-            ##raise ConfigurationSectionError(section, Exception(f'Cannot add section {section}: {section} already exists.'))
-            return
+            return self._sections.__getitem__(key)
+        except KeyError:
+            section: Section = Section(key, self._parser, self._reference)
+            self.__setitem__(key, section)
+            return self._sections.__getitem__(key)
 
-    def set_key_value(self, section, key, value):
-        """
-        Sets a value for the given key in the given section.
-        """
-        try:
-            # set the section name to all caps
-            section = section.upper()
-            self.add_section(section)
-        except (ValueError, DuplicateSectionError):
-            # pass if the section already exists
-            pass
-        finally:
-            self._config.set(section, key, value)
-            self.write()
+    def __delitem__(self, key: str) -> None:
+        section: Section = self.__getitem__(key)
+        section.clear()
+        self._parser.remove_section(section.name)
+        self._sections.__delitem__(key)
+        self.__write__()
 
-    def get_key_value(self, section, key):
-        """
-        Retrieves the value for the given key in the given section.
+    def __iter__(self) -> Iterator[Dict[str, str]]:
+        return self._sections.__iter__()
 
-        Raises:
-            `MissingConfigurationEntryError` if the provided section does not contain the provided key.
-        """
-        # reload the config file to get changes
-        self.reload()
-        # get the value for the provided key if it exists, or None if not
-        value: str = self._config.get(section, key, fallback=None)
-        # if the key does not exist in the config file
-        if value is None: raise MissingConfigurationEntryError(key)
-        # return value
-        return value
-            
-    def write(self) -> None:
-        with open(self.file, 'w') as configFile:
-            self._config.write(configFile)
+    def __len__(self) -> int:
+        return self._sections.__len__()
 
-    def get_integer(self, section: str, key: str) -> int:
-        # if the config is missing the given section
-        if not self._config.has_section(section):
-            # add the given section to the config
-            self.add_section(section)
-        try:
-            # get the value from the config file
-            value: str = self.get_key_value(section, key)
-            # if the entry is an empty string
-            if value == '': raise EmptyConfigurationEntryError(key)
-            # parse the int and return
-            return int(value)
-        except MissingConfigurationEntryError:
-            # create the key with an empty string value
-            self.set_key_value(section, key, str())
-            raise EmptyConfigurationEntryError(key)
+    def __str__(self) -> str:
+        return self._sections.__str__()
 
-    def set_integer(self, section: str, key: str, value: int) -> None:
-        # if the value is not an integer
-        if not isinstance(value, int): raise ConfigurationError(f'Cannot set {value} for key \'{key}\'; {int} was expected but a {type(value)} was received.')
-        # add the given value to the given key in the given section
-        self.set_key_value(section, key, str(value))
+    def __write__(self) -> None:
+        with open(self._reference, 'w') as file:
+            self._parser.write(file)
 
-    def get_folder(self, section: str, key: str) -> pathlib.Path:
-        # if the config is missing the given section
-        if not self._config.has_section(section):
-            # add the given section to the config
-            self.add_section(section)
-        try:
-            # get the value from the config
-            value: str = self.get_key_value(section, key)
-            # if the entry is an empty string
-            if value == '': raise EmptyConfigurationEntryError(key)
-            # get a reference from the provided folder name
-            path: pathlib.Path = pathlib.Path(value)
-            # if the path doesn't exist, create it
-            if not path.exists(): path.mkdir(parents=True, exist_ok=True)
-            # return the path
-            return path
-        except MissingConfigurationEntryError:
-            # create the key if it is missing
-            self.set_key_value(section, key, str())
-            raise EmptyConfigurationEntryError(key)
+    def __read__(self) -> None:
+        self._parser.read(self._reference)
 
-    def set_folder(self, section: str, key: str, value: str) -> None:
-        # if the config is missing the given section
-        if not self._config.has_section(section):
-            # add the given section to the config
-            self.add_section(section)
-        try:
-            # get a reference from the provided folder name
-            path: pathlib.Path = pathlib.Path(value)
-            # if the path doesn't exist, create it
-            if not path.exists(): path.mkdir(parents=True, exist_ok=True)
-            # add the given value to the given key in the given section
-            self.set_key_value(section, key, value)
-        except:
-            raise
+    def __init__(self, reference: Path):
+        self._name: str = self._reference.stem
+        self._parser: ConfigParser = configparser.ConfigParser()
+        self._reference: Path = reference.resolve()
+        if not self._reference.parent.exists():
+            self._reference.parent.mkdir(parents=True, exist_ok=True)
+        if not self._reference.is_file():
+            self._reference.touch(exist_ok=True)
+        self.__read__()
+        sections: List[Section] = [Section(
+            section, self._parser, self._reference) for section in self._parser.sections()]
+        self._sections: Dict[str, Section] = {
+            section.name: section for section in sections}
 
-    def get_character(self, section: str, key: str) -> str:
-        value = self.get_string(section, key)
-        # if the given value is not a character
-        if not (isinstance(value, str) and len(value) == 1): raise ConfigurationError(f'The value for {key} must be a single character.')
-        return value
+    @property
+    def name(self) -> str:
+        """The configuration file's name."""
+        return self._name
 
-    def set_character(self, section: str, key: str, value: str) -> None:
-        # if the given value is not a character
-        if not (isinstance(value, str) and len(value) == 1): raise ConfigurationError(f'The value for {key} must be a single character.')
-        # add the given value to the given key in the given section
-        self.set_string(section, key, value)
-
-    
-    def get_string(self, section: str, key: str):
-        # if the config is missing the given section
-        if not self._config.has_section(section):
-            # add the given section to the config
-            self.add_section(section)
-        try:
-            # get the value from the config
-            value = self.get_key_value(section, key)
-            # if the key's value is missing
-            if not value: raise EmptyConfigurationEntryError(key)
-            # return the value
-            return value
-        except MissingConfigurationEntryError:
-            # create the key if it is missing
-            self.set_key_value(section, key, '')
-            raise EmptyConfigurationEntryError(key)
-
-    def set_string(self, section: str, key: str, value: str):
-        # add the given value to the given key in the given section
-        self.set_key_value(section, key, value)
-
+    def add_section(self, name: str) -> None:
+        section: Section = Section(name, self._parser, self._reference)
+        self.__setitem__(name, section)
