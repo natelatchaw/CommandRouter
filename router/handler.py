@@ -5,6 +5,8 @@ from inspect import BoundArguments
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Match, Pattern
 
+from router.packaging.package import PackageInitializationError
+
 from .packaging import Command, Component, Package, CommandError
 
 log: Logger = logging.getLogger(__name__)
@@ -45,8 +47,8 @@ class Handler():
                 for component in package.components.values():
                     for command in component.commands.values():
                         self._registry[command.name] = Entry(package.name, component.name, command.name)
-            except ImportError as error:
-                log.warn('Package assembly failed for file %s: %s', reference.name, error)
+            except PackageInitializationError as error:
+                log.error(error)
             except Exception as error:
                 log.error(error)
             else:
