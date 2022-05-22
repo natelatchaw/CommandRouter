@@ -10,8 +10,6 @@ setup(
     packages=[
         'router',
         'router.configuration',
-        'router.static',
-        'router.error',
     ],
     url='not available',
     install_requires=[],
@@ -19,6 +17,6 @@ setup(
         'Development Status :: Alpha',
         'Intended Audience :: Hobbyist',
         'Operating System :: Agnostic',
-        'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
     ],
 )

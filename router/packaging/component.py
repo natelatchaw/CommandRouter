@@ -3,8 +3,7 @@ from inspect import BoundArguments, Signature
 from types import MethodType
 from typing import Any, Dict, List, Tuple, Type
 
-from router.command import Command
-from router.error.component import InvalidInitializerError
+from .command import Command
 
 
 class Component():
@@ -34,15 +33,42 @@ class Component():
 
 
     def __init__(self, obj: Type, *args, **kwargs):
-        """Initialize a Component via its Type object."""
+        """
+        Initialize a component via its type object.
+
+        Raises:
+        - ComponentInitializationError          upon failing to bind to the component's initializer
+        """
 
         # set the Type object
         self._type: Type = obj
         # get the type's initializer signature
         self._signature: Signature = inspect.signature(self._type.__init__)
         # bind the provided parameters to the signature
-        try: self._arguments: BoundArguments = self._signature.bind(self,*args, **kwargs)
+        try:
+            self._arguments: BoundArguments = self._signature.bind(self,*args, **kwargs)
         # if an error occurred during binding
-        except TypeError: raise #InvalidInitializerError(self.name)
+        except TypeError as error:
+            raise ComponentInitializationError(self._type.__name__, error)
         # initialize the class object
         self._instance: Any = self._type(self._arguments.args, self._arguments.kwargs)
+
+
+class ComponentError(Exception):
+    """Base exception class for component related errors."""
+
+    def __init__(self, message: str, exception: Exception | None = None) -> None:
+        self._message = message
+        self._inner_exception = exception
+
+    def __str__(self) -> str:
+        return self._message
+        
+
+class ComponentInitializationError(ComponentError):
+    """Raised when an exception occurs when intitializing a component."""
+
+    def __init__(self, component_name: str, exception: Exception | None = None) -> None:
+        message: str = f'Failed to initialize component {component_name}: {exception}'
+        super().__init__(message, exception)
+
