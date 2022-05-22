@@ -5,7 +5,7 @@ from inspect import BoundArguments
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Match, Pattern
 
-from router.packaging import Command, Component, Package, CommandError
+from .packaging import Command, Component, Package, CommandError
 
 
 class Handler():
