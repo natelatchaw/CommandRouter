@@ -5,7 +5,7 @@ import logging
 from pathlib import Path
 from typing import Dict, Iterator, List, MutableMapping
 
-from router.configuration import Section
+from .section import Section
 
 __all__: List[str] = [
     "Configuration"

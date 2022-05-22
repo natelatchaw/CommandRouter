@@ -10,6 +10,7 @@ setup(
     packages=[
         'router',
         'router.configuration',
+        'router.packaging',
     ],
     url='not available',
     install_requires=[],
