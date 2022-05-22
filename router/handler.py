@@ -39,7 +39,7 @@ class Handler():
         # get all paths for files in the provided directory
         pattern: str = f'*.{extension}'
         references: List[Path] = [reference for reference in directory.glob(pattern) if reference.is_file()]
-        log.debug('Found %s %s files in %s', len(references), extension, str(directory))
+        log.debug('Found %s .%s files in %s', len(references), extension, str(directory))
 
         for reference in references:
             try:
