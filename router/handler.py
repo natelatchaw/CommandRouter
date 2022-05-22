@@ -7,11 +7,11 @@ from typing import Any, Callable, Dict, List, Match, Pattern
 
 from .packaging import Command, Component, Package, CommandError
 
+log: Logger = logging.getLogger(__name__)
 
 class Handler():
 
     def __init__(self):
-        self._logger: Logger = logging.getLogger(__name__)
         # initialize the registry
         self._registry: Dict[str, Entry] = dict()
         # initialize the package dictionary
@@ -29,7 +29,7 @@ class Handler():
 
         # resolve the provided directory path
         directory: Path = directory.resolve()
-        self._logger.debug('Resolved provided directory to %s', directory)
+        log.debug('Resolved provided directory to %s', directory)
 
         # if the provided directory doesn't exist
         if not directory.exists(): raise HandlerLoadError(directory)
@@ -37,7 +37,7 @@ class Handler():
         # get all paths for files in the provided directory
         pattern: str = f'*.{extension}'
         references: List[Path] = [reference for reference in directory.glob(pattern) if reference.is_file()]
-        self._logger.debug('Found %s %s files in %s', len(references), extension, str(directory))
+        log.debug('Found %s %s files in %s', len(references), extension, str(directory))
 
         for reference in references:
             try:
@@ -46,9 +46,9 @@ class Handler():
                     for command in component.commands.values():
                         self._registry[command.name] = Entry(package.name, component.name, command.name)
             except ImportError as error:
-                self._logger.warn('Package assembly failed for file %s: %s', reference.name, error)
+                log.warn('Package assembly failed for file %s: %s', reference.name, error)
             except Exception as error:
-                self._logger.error(error)
+                log.error(error)
             else:
                 self._packages[package.name] = package
 
