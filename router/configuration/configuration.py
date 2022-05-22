@@ -22,7 +22,7 @@ class Configuration(MutableMapping):
             self.__read__()
             self._sections.__setitem__(key, value)
             self.__write__()
-            self._logger.debug('Set section %s:%s', self._name, key)
+            log.debug('Set section %s:%s', self._name, key)
         except Exception:
             raise
 
