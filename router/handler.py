@@ -46,21 +46,14 @@ class Handler():
         for reference in references:
             try:
                 package: Package = Package(reference)
-                for component in package.components.values():
-                    try: 
-                        for command in component.commands.values():
-                            try:
-                                self._registry[command.name] = Entry(package.name, component.name, command.name)
-                                log.warn('Added command %s.%s.%s', package.name, component.name, command.name)
-                            except Exception as error:
-                                log.error(error)
-                                continue
-                    except Exception as error:
-                        log.error(error)
-                        continue
+
+                for component in package.values():
+                    for command in component.values():
+                        self._registry[command.name] = Entry(package.name, component.name, command.name)
+                        log.warn('Added command %s.%s.%s', package.name, component.name, command.name)
+
             except Exception as error:
                 log.error(error)
-                continue
             else:
                 self._packages[package.name] = package
 
@@ -117,9 +110,7 @@ class Handler():
 
         try:
             entry: Entry = self._registry[command_name]
-            package: Package = self._packages[entry.package]
-            component: Component = package.components[entry.component]
-            command: Command = component.commands[entry.command]
+            command: Command = self._packages[entry.package][entry.component][entry.command]
         except KeyError as error:
             raise HandlerLookupError(command_name, error)
 
