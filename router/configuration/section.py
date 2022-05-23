@@ -13,27 +13,31 @@ log: Logger = logging.getLogger(__name__)
 class Section(MutableMapping):
 
     def __setitem__(self, key: str, value: str) -> None:
-        self.__read__()
-        self._parser.set(self._name, key, value)
-        self.__write__()
-        log.debug('Set entry %s:%s:%s', self._reference.name, self._name, key)
+        try:
+            self.__read__()
+            self._parser.set(self._name, key, value)
+            self.__write__()
+            log.debug('Set entry %s:%s:%s', self._reference.name, self._name, key)
+        except:
+            raise
 
     def __getitem__(self, key: str) -> str | None:
-        self.__read__()
         try:
+            self.__read__()
             entry: str = self._parser.get(self._name, key)
             log.debug('Get entry %s:%s:%s', self._reference.name, self._name, key)
             return entry
         except NoOptionError:
-            log.debug('No entry %s:%s:%s', self._reference.name, self._name, key)
-            return None
+            raise KeyError(key)
 
     def __delitem__(self, key: str) -> None:
-        self.__read__()
-        key: str = self.__getitem__(key)
-        self._parser.remove_option(self._name, key)
-        self.__write__()
-        log.debug('Delete entry %s:%s:%s', self._reference.name, self._name, key)
+        try:
+            key: str = self.__getitem__(key)
+            self._parser.remove_option(self._name, key)
+            self.__write__()
+            log.debug('Del entry %s:%s:%s', self._reference.name, self._name, key)
+        except:
+            raise
 
     def __iter__(self) -> Iterator[Dict[str, str]]:
         return iter({key: value for key, value in self._parser.items(self._name)})

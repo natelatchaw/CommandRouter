@@ -1,36 +1,15 @@
 import inspect
 from inspect import BoundArguments, Signature
+from logging import Logger
+import logging
 from types import MethodType
-from typing import Any, Dict, List, Tuple, Type
+from typing import Any, Dict, List, Optional, Tuple, Type
 
 from .command import Command
 
+log: Logger = logging.getLogger(__name__)
 
 class Component():
-    
-    @property
-    def name(self) -> str:
-        return self._type.__name__
-
-    @property
-    def signature(self) -> Signature:
-        return self._signature
-    
-    @property
-    def doc(self) -> str:
-        return self._type.__doc__
-
-    @property
-    def commands(self) -> Dict[str, Command]:
-        # get all method members of the instance
-        members: List[Tuple[str, MethodType]] = inspect.getmembers(self._instance, inspect.ismethod)
-        # filter members that start with a double underscore
-        members: List[Tuple[str, MethodType]] = [(method_name, method_object) for method_name, method_object, in members if not method_name.startswith('__')]
-        # create command from each member
-        commands: List[Command] = [Command(method_object) for method_name, method_object in members]
-        # return assembled dictionary
-        return dict([(command.name, command) for command in commands])
-
 
     def __init__(self, obj: Type, *args, **kwargs):
         """
@@ -52,12 +31,50 @@ class Component():
             raise ComponentInitializationError(self._type.__name__, error)
         # initialize the class object
         self._instance: Any = self._type(self._arguments.args, self._arguments.kwargs)
+        # load all commands
+        self._commands: Dict[str, Command] = self.load()
+    
+    @property
+    def name(self) -> str:
+        return self._type.__name__
+
+    @property
+    def signature(self) -> Signature:
+        return self._signature
+    
+    @property
+    def doc(self) -> str:
+        return self._type.__doc__
+
+    @property
+    def commands(self) -> Dict[str, Command]:
+        return self._commands
+
+    def load(self) -> Dict[str, Command]:
+        # get all method members of the instance
+        members: List[Tuple[str, MethodType]] = inspect.getmembers(self._instance, inspect.ismethod)
+        # filter members that start with a double underscore
+        members: List[Tuple[str, MethodType]] = [(method_name, method_object) for method_name, method_object, in members if not method_name.startswith('__')]
+        # instantiate dictionary
+        commands: Dict[str, Command] = dict()
+        # for each member
+        for method_name, method_object in members:
+            try:
+                # instantiate command
+                command: Command = Command(method_object)
+                # add command to dictionary
+                commands[command.name] = command
+            except Exception as error:
+                log.error(error)
+        # return dictionary
+        return commands
+
 
 
 class ComponentError(Exception):
     """Base exception class for component related errors."""
 
-    def __init__(self, message: str, exception: Exception | None = None) -> None:
+    def __init__(self, message: str, exception: Optional[Exception] = None) -> None:
         self._message = message
         self._inner_exception = exception
 
@@ -68,7 +85,7 @@ class ComponentError(Exception):
 class ComponentInitializationError(ComponentError):
     """Raised when an exception occurs when intitializing a component."""
 
-    def __init__(self, component_name: str, exception: Exception | None = None) -> None:
+    def __init__(self, component_name: str, exception: Optional[Exception] = None) -> None:
         message: str = f'Failed to initialize component {component_name}: {exception}'
         super().__init__(message, exception)
 

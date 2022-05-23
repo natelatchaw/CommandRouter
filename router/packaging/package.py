@@ -1,36 +1,18 @@
 import importlib.util
 import inspect
 from importlib.machinery import ModuleSpec
+from logging import Logger
+import logging
 from pathlib import Path
 from types import ModuleType
-from typing import Dict, List, Tuple, Type
+from typing import Dict, List, Optional, Tuple, Type
 
 from .component import Component
 
+log: Logger = logging.getLogger(__name__)
 
 class Package():
 
-    @property
-    def name(self) -> str:
-        # return the name from the spec
-        return self._spec.name
-    
-    @property
-    def doc(self) -> str:
-        return self._module.__doc__
-
-    @property
-    def components(self) -> Dict[str, Component]:
-        # get all class members of the module
-        members: List[Tuple[str, Type]] = inspect.getmembers(self._module, inspect.isclass)
-        # filter members without a matching module name
-        members: List[Tuple[str, Type]] = [(class_name, class_object) for class_name, class_object in members if class_object.__module__ == self._module.__name__]
-        # create component from each member
-        components: List[Component] = [Component(class_object) for class_name, class_object in members]
-        # return assembled dictionary
-        return dict([(component.name, component) for component in components])
-
-    
     def __init__(self, reference: Path) -> None:
         """
         Initialize a package via its path.
@@ -51,12 +33,48 @@ class Package():
         # if an error occurred during import
         except ImportError as error:
             raise PackageInitializationError(self._spec.name, error)
+        # load all components
+        self._components: Dict[str, Component] = self.load()
+
+    @property
+    def name(self) -> str:
+        # return the name from the spec
+        return self._spec.name
+    
+    @property
+    def doc(self) -> str:
+        return self._module.__doc__
+
+    @property
+    def components(self) -> Dict[str, Component]:
+        return self._components
+
+    def load(self) -> Dict[str, Component]:
+        # get all class members of the module
+        members: List[Tuple[str, Type]] = inspect.getmembers(self._module, inspect.isclass)
+        # filter members without a matching module name
+        members: List[Tuple[str, Type]] = [(class_name, class_object) for class_name, class_object in members if class_object.__module__ == self._module.__name__]
+        # instantiate dictionary
+        components: Dict[str, Component] = dict()
+        # for each member
+        for class_name, class_object in members:
+            try:
+                # instantiate component
+                component: Component = Component(class_object)
+                # add component to dictionary
+                components[component.name] = component
+            except Exception as error:
+                log.error(error)
+        # return dictionary
+        return components
+
+    
 
 
 class PackageError(Exception):
     """Base exception class for package related errors."""
 
-    def __init__(self, message: str, exception: Exception | None = None) -> None:
+    def __init__(self, message: str, exception: Optional[Exception] = None) -> None:
         self._message = message
         self._inner_exception = exception
 
@@ -67,7 +85,7 @@ class PackageError(Exception):
 class PackageInitializationError(PackageError):
     """Raised when an exception occurs when initializing a package."""
 
-    def __init__(self, package_name: str, exception: Exception | None = None) -> None:
+    def __init__(self, package_name: str, exception: Optional[Exception] = None) -> None:
         message: str = f'Failed to initialize package {package_name}: {exception}'
         super().__init__(message, exception)
 

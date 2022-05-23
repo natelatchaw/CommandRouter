@@ -1,6 +1,7 @@
 import inspect
 from inspect import BoundArguments, Signature
 from types import MethodType
+from typing import Optional
 
 
 class Command():
@@ -49,7 +50,7 @@ class Command():
 class CommandError(Exception):
     """Base exception class for command related errors."""
 
-    def __init__(self, message: str, exception: Exception | None = None) -> None:
+    def __init__(self, message: str, exception: Optional[Exception] = None) -> None:
         self._message = message
         self._inner_exception = exception
 
@@ -60,6 +61,6 @@ class CommandError(Exception):
 class SignatureMismatchException(CommandError):
     """Raised when an exception occurs when binding command arguments."""
 
-    def __init__(self, provided_signature: Signature, target_signature: Signature, exception: Exception | None = None) -> None:
+    def __init__(self, provided_signature: Signature, target_signature: Signature, exception: Optional[Exception] = None) -> None:
         message: str = f'Incompatible signature provided; received {provided_signature}, expected {target_signature}'
         super().__init__(message, exception)

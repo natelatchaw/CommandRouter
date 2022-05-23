@@ -11,9 +11,7 @@ __all__: List[str] = [
     "Configuration"
 ]
 
-
 log: Logger = logging.getLogger(__name__)
-
 
 class Configuration(MutableMapping):
 
@@ -22,24 +20,17 @@ class Configuration(MutableMapping):
             self.__read__()
             self._sections.__setitem__(key, value)
             self.__write__()
-            log.debug('Set section %s:%s', self._name, key)
-        except Exception:
+            log.debug('Set entry %s:%s', self._name, key)
+        except:
             raise
 
     def __getitem__(self, key: str) -> Section:
         try:
             self.__read__()
             section: Section = self._sections.__getitem__(key)
-            log.debug('Get section %s:%s', self._reference.name, key)
+            log.debug('Get entry %s:%s', self._name, key)
             return section
         except KeyError:
-            section: Section = Section(key, self._parser, self._reference)
-            log.debug('Created section %s:%s', self._reference.name, section.name)
-            self.__setitem__(key, section)
-            section: Section = self._sections.__getitem__(key)
-            log.debug('Get section %s:%s', self._reference.name, key)
-            return section
-        except Exception:
             raise
 
     def __delitem__(self, key: str) -> None:
@@ -49,8 +40,8 @@ class Configuration(MutableMapping):
             self._parser.remove_section(section.name)
             self._sections.__delitem__(key)
             self.__write__()
-            log.debug('Delete section %s:%s', self._reference.name, key)
-        except Exception:
+            log.debug('Del entry %s:%s', self._name, key)
+        except:
             raise
 
     def __iter__(self) -> Iterator[Dict[str, str]]:

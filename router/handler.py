@@ -3,7 +3,7 @@ import logging
 import re
 from inspect import BoundArguments
 from pathlib import Path
-from typing import Any, Dict, List, Match, Pattern, Tuple
+from typing import Any, Dict, List, Match, Optional, Pattern, Tuple
 
 from router.packaging.package import PackageInitializationError
 
@@ -47,12 +47,20 @@ class Handler():
             try:
                 package: Package = Package(reference)
                 for component in package.components.values():
-                    for command in component.commands.values():
-                        self._registry[command.name] = Entry(package.name, component.name, command.name)
-            except PackageInitializationError as error:
-                log.error(error)
+                    try: 
+                        for command in component.commands.values():
+                            try:
+                                self._registry[command.name] = Entry(package.name, component.name, command.name)
+                                log.warn('Added command %s.%s.%s', package.name, component.name, command.name)
+                            except Exception as error:
+                                log.error(error)
+                                continue
+                    except Exception as error:
+                        log.error(error)
+                        continue
             except Exception as error:
                 log.error(error)
+                continue
             else:
                 self._packages[package.name] = package
 
@@ -148,7 +156,7 @@ class Entry():
 class HandlerError(Exception):
     """Base exception class for handler related errors."""
     
-    def __init__(self, message: str, exception: Exception | None = None):
+    def __init__(self, message: str, exception: Optional[Exception] = None):
         self._message = message
         self._inner_exception = exception
 
@@ -159,7 +167,7 @@ class HandlerError(Exception):
 class HandlerLoadError(HandlerError):
     """Raised when an exception occurs while loading handler inputs."""
 
-    def __init__(self, reference: Path, exception: Exception | None = None):
+    def __init__(self, reference: Path, exception: Optional[Exception] = None):
         message: str = f'Failed to load {reference}: {exception}'
         super().__init__(message, exception)
 
@@ -167,7 +175,7 @@ class HandlerLoadError(HandlerError):
 class MissingCommandError(HandlerError):
     """Raised when a command name could not be determined from the message."""
 
-    def __init__(self, exception: Exception | None = None):
+    def __init__(self, exception: Optional[Exception] = None):
         message: str = f'Could not determine a command from the message.'
         super().__init__(message, exception)
 
@@ -175,7 +183,7 @@ class MissingCommandError(HandlerError):
 class HandlerExecutionError(HandlerError):
     """Raised when an exception occurs during command execution."""
 
-    def __init__(self, command_name: str, exception: Exception | None = None):
+    def __init__(self, command_name: str, exception: Optional[Exception] = None):
         message: str = f'An exception occurred while executing command \'{command_name}\': {exception}'
         super().__init__(message, exception)
         
