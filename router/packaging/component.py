@@ -1,15 +1,16 @@
+from collections.abc import Mapping
 import inspect
 from inspect import BoundArguments, Signature
 from logging import Logger
 import logging
 from types import MethodType
-from typing import Any, Dict, List, Optional, Tuple, Type
+from typing import Any, Dict, Iterator, List, Mapping, Optional, Tuple, Type
 
 from .command import Command
 
 log: Logger = logging.getLogger(__name__)
 
-class Component():
+class Component(Mapping[str, Command]):
 
     def __init__(self, obj: Type, *args, **kwargs):
         """
@@ -33,6 +34,15 @@ class Component():
         self._instance: Any = self._type(self._arguments.args, self._arguments.kwargs)
         # load all commands
         self._commands: Dict[str, Command] = self.load()
+
+    def __getitem__(self, key: str) -> Command:
+        return self._commands.__getitem__(key)
+
+    def __iter__(self) -> Iterator[str]:
+        return self._commands.__iter__()
+
+    def __len__(self) -> int:
+        return self._commands.__len__()
     
     @property
     def name(self) -> str:
@@ -45,10 +55,6 @@ class Component():
     @property
     def doc(self) -> str:
         return self._type.__doc__
-
-    @property
-    def commands(self) -> Dict[str, Command]:
-        return self._commands
 
     def load(self) -> Dict[str, Command]:
         # get all method members of the instance

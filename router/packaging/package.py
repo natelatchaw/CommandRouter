@@ -1,17 +1,18 @@
 import importlib.util
 import inspect
+import logging
+from collections.abc import Mapping
 from importlib.machinery import ModuleSpec
 from logging import Logger
-import logging
 from pathlib import Path
 from types import ModuleType
-from typing import Dict, List, Optional, Tuple, Type
+from typing import Dict, Iterator, List, Optional, Tuple, Type
 
 from .component import Component
 
 log: Logger = logging.getLogger(__name__)
 
-class Package():
+class Package(Mapping[str, Component]):
 
     def __init__(self, reference: Path) -> None:
         """
@@ -35,6 +36,15 @@ class Package():
             raise PackageInitializationError(self._spec.name, error)
         # load all components
         self._components: Dict[str, Component] = self.load()
+
+    def __getitem__(self, key: str) -> Component:
+        return self._components.__getitem__(key)
+
+    def __iter__(self) -> Iterator[str]:
+        return self._components.__iter__()
+
+    def __len__(self) -> int:
+        return self._components.__len__()
 
     @property
     def name(self) -> str:
