@@ -12,6 +12,17 @@ setup(
         'router.configuration',
         'router.packaging',
     ],
+    package_data={
+        "router": [
+            "py.typed"
+        ],
+        "router.configuration": [
+            "py.typed"
+        ],
+        "router.packaging": [
+            "py.typed"
+        ],
+    },
     url='not available',
     install_requires=[],
     classifiers=[
