@@ -1,8 +1,8 @@
-import abc
 import configparser
+import logging
+from collections.abc import MutableMapping
 from configparser import ConfigParser
 from logging import Logger
-import logging
 from pathlib import Path
 from typing import Dict, Iterator, List, MutableMapping
 
@@ -14,7 +14,7 @@ __all__: List[str] = [
 
 log: Logger = logging.getLogger(__name__)
 
-class Configuration(abc.collections.MutableMapping):
+class Configuration(MutableMapping[str, str]):
 
     def __setitem__(self, key: str, value: Section) -> None:
         try:

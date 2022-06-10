@@ -1,8 +1,9 @@
+import logging
+from collections.abc import MutableMapping
 from configparser import ConfigParser, NoOptionError
 from logging import Logger
-import logging
 from pathlib import Path
-from typing import Dict, Iterator, List, MutableMapping
+from typing import Dict, Iterator, List
 
 __all__: List[str] = [
     "Section"
@@ -10,7 +11,7 @@ __all__: List[str] = [
 
 log: Logger = logging.getLogger(__name__)
 
-class Section(MutableMapping):
+class Section(MutableMapping[str, str]):
 
     def __setitem__(self, key: str, value: str) -> None:
         try:

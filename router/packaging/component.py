@@ -1,8 +1,8 @@
-from collections.abc import Mapping
 import inspect
+import logging
+from collections.abc import Mapping
 from inspect import BoundArguments, Signature
 from logging import Logger
-import logging
 from types import MethodType
 from typing import Any, Dict, Iterator, List, Mapping, Optional, Tuple, Type
 

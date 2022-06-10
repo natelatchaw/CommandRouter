@@ -5,8 +5,6 @@ from logging import Logger
 from types import MethodType
 from typing import Optional
 
-from .component import Component
-
 log: Logger = logging.getLogger(__name__)
 
 class Command():
