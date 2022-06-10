@@ -13,13 +13,27 @@ from .component import Component
 log: Logger = logging.getLogger(__name__)
 
 class Package(Mapping[str, Component]):
+    
+    @property
+    def name(self) -> str:
+        return self._spec.name
+    
+    @property
+    def doc(self) -> str:
+        return self._module.__doc__
+
+    @property
+    def components(self) -> Dict[str, Component]:
+        return self._components
+
 
     def __init__(self, reference: Path) -> None:
         """
         Initialize a package via its path.
 
         Raises:
-        - PackageInitializationError        upon failing to import module dependencies
+        - PackageInitializationError
+            upon failing to import module dependencies
         """
 
         # resolve the provided reference
@@ -35,7 +49,8 @@ class Package(Mapping[str, Component]):
         except ImportError as error:
             raise PackageInitializationError(self._spec.name, error)
         # load all components
-        self._components: Dict[str, Component] = self.load()
+        self._components: Dict[str, Component] = self.__load__()
+
 
     def __getitem__(self, key: str) -> Component:
         return self._components.__getitem__(key)
@@ -46,20 +61,8 @@ class Package(Mapping[str, Component]):
     def __len__(self) -> int:
         return self._components.__len__()
 
-    @property
-    def name(self) -> str:
-        # return the name from the spec
-        return self._spec.name
-    
-    @property
-    def doc(self) -> str:
-        return self._module.__doc__
 
-    @property
-    def components(self) -> Dict[str, Component]:
-        return self._components
-
-    def load(self) -> Dict[str, Component]:
+    def __load__(self) -> Dict[str, Component]:
         # get all class members of the module
         members: List[Tuple[str, Type]] = inspect.getmembers(self._module, inspect.isclass)
         # filter members without a matching module name
@@ -77,9 +80,7 @@ class Package(Mapping[str, Component]):
                 log.error(error)
         # return dictionary
         return components
-
-    
-
+        
 
 class PackageError(Exception):
     """Base exception class for package related errors."""

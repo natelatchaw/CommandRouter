@@ -1,3 +1,4 @@
+import abc
 import configparser
 from configparser import ConfigParser
 from logging import Logger
@@ -13,7 +14,7 @@ __all__: List[str] = [
 
 log: Logger = logging.getLogger(__name__)
 
-class Configuration(MutableMapping):
+class Configuration(abc.collections.MutableMapping):
 
     def __setitem__(self, key: str, value: Section) -> None:
         try:

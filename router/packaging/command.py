@@ -1,22 +1,28 @@
 import inspect
+import logging
 from inspect import BoundArguments, Signature
+from logging import Logger
 from types import MethodType
 from typing import Optional
 
+from .component import Component
+
+log: Logger = logging.getLogger(__name__)
 
 class Command():
     
     @property
     def name(self) -> str:
         return self._method.__name__
-
-    @property
-    def signature(self) -> Signature:
-        return self._signature
     
     @property
     def doc(self) -> str:
         return self._method.__doc__
+
+    @property
+    def signature(self) -> Signature:
+        return self._signature
+        
 
     def __init__(self, obj: MethodType) -> None:
         """
@@ -30,12 +36,14 @@ class Command():
         # get the method's signature
         self._signature: Signature = inspect.signature(self._method)
 
+
     async def run(self, arguments: BoundArguments) -> None:
         """
         Run the command via provided BoundArguments.
 
         Raises:
-        - SignatureMismatchException            upon failure to provide matching command arguments
+        - SignatureMismatchException
+            upon failure to provide matching command arguments
         """
 
         # if the provided arguments do not match the command arguments

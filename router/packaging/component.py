@@ -11,13 +11,27 @@ from .command import Command
 log: Logger = logging.getLogger(__name__)
 
 class Component(Mapping[str, Command]):
+    
+    @property
+    def name(self) -> str:
+        return self._type.__name__
+
+    @property
+    def signature(self) -> Signature:
+        return self._signature
+    
+    @property
+    def doc(self) -> str:
+        return self._type.__doc__
+
 
     def __init__(self, obj: Type, *args, **kwargs):
         """
         Initialize a component via its type object.
 
         Raises:
-        - ComponentInitializationError          upon failing to bind to the component's initializer
+        - ComponentInitializationError
+            upon failing to bind to the component's initializer
         """
 
         # set the Type object
@@ -35,6 +49,7 @@ class Component(Mapping[str, Command]):
         # load all commands
         self._commands: Dict[str, Command] = self.load()
 
+
     def __getitem__(self, key: str) -> Command:
         return self._commands.__getitem__(key)
 
@@ -43,18 +58,7 @@ class Component(Mapping[str, Command]):
 
     def __len__(self) -> int:
         return self._commands.__len__()
-    
-    @property
-    def name(self) -> str:
-        return self._type.__name__
 
-    @property
-    def signature(self) -> Signature:
-        return self._signature
-    
-    @property
-    def doc(self) -> str:
-        return self._type.__doc__
 
     def load(self) -> Dict[str, Command]:
         # get all method members of the instance
@@ -74,9 +78,8 @@ class Component(Mapping[str, Command]):
                 log.error(error)
         # return dictionary
         return commands
-
-
-
+        
+        
 class ComponentError(Exception):
     """Base exception class for component related errors."""
 

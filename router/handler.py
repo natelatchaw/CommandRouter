@@ -1,13 +1,11 @@
-from logging import Logger
 import logging
 import re
 from inspect import BoundArguments
+from logging import Logger
 from pathlib import Path
 from typing import Any, Dict, List, Match, Optional, Pattern, Tuple
 
-from router.packaging.package import PackageInitializationError
-
-from .packaging import Command, Component, Package, CommandError
+from .packaging import Command, CommandError, Component, Package
 
 log: Logger = logging.getLogger(__name__)
 
@@ -20,23 +18,62 @@ class Handler():
         self._registry: Dict[str, Entry] = dict()
         # initialize the package dictionary
         self._packages: Dict[str, Package] = dict()
+        # compile regex patterns
+        self.__compile__()
+
+
+    def __compile__(self) -> None:
+        """
+        Compile regex patterns used in message analyzation.
+        """
         
+        # compile the command pattern
+        self._command_pattern: Pattern = re.compile(rf'^[\w]+')
+        # compile the parameter pattern
+        self._parameter_pattern: Pattern = re.compile(rf'{self._parameter_prefix}([\w]+)[\s]+((?:(?!\s\-).)+\b)')
+
+
+    def __add_package__(self, package: Package) -> None:
+        for component in package.values():
+            for command in component.values():
+                self._registry[command.name] = Entry(package.name, component.name, command.name)
+                log.info('Added command %s.%s.%s', package.name, component.name, command.name)
+
+
+    def __get_name__(self, message: str) -> Optional[str]:
+        """
+        Searches the message for the command name using the command pattern
+        """
+        # find command name matches in the message
+        command_match: Match = re.match(self._command_pattern, message)
+        # get the command name from the match
+        command_name: Optional[str] = command_match.group(0) if command_match else None
+        return command_name
+
+
+    def __get_kwargs__(self, message: str) -> Dict[str, str]:
+        """
+        Searches the message for parameter key-value pairs using the parameter pattern
+        """
+        # find all parameter name-value pairs in the message
+        parameters: List[Tuple[str, str]] = re.findall(self._parameter_pattern, message)
+        # convert parameter name-value pairs into kwargs dictionary
+        kwargs: Dict[str, str] = {parameter_name: parameter_value for parameter_name, parameter_value in parameters}
+        return kwargs
+
 
     def load(self, directory: Path, extension: str = 'py'):
         """
         Load package files from a directory.
         Failed package assemblies are logged as warning messages.
-
-        Raises:
-        - HandlerLoadError          if the provided directory does not exist
         """
 
         # resolve the provided directory path
         directory: Path = directory.resolve()
         log.debug('Resolved provided directory to %s', directory)
 
-        # if the provided directory doesn't exist
-        if not directory.exists(): raise HandlerLoadError(directory)
+        # if the provided directory doesn't exist, create it
+        if not directory.exists(): directory.mkdir(parents=True, exist_ok=True)
 
         # get all paths for files in the provided directory
         pattern: str = f'*.{extension}'
@@ -46,79 +83,62 @@ class Handler():
         for reference in references:
             try:
                 package: Package = Package(reference)
-
-                for component in package.values():
-                    for command in component.values():
-                        self._registry[command.name] = Entry(package.name, component.name, command.name)
-                        log.warn('Added command %s.%s.%s', package.name, component.name, command.name)
-
+                self.__add_package__(package)
+                self._packages[package.name] = package
             except Exception as error:
                 log.error(error)
-            else:
-                self._packages[package.name] = package
+
 
     async def process(self, message: str, *, args: List[Any] = list()) -> None:
         """
         Process a message, parsing it for:
         - a primary command name
-        - delimited parameters key value pairs
+        - delimited parameter key-value pairs
 
         Raises:
-            - TypeError                 upon invalid message type provided
-            - HandlerExecutionError     upon failure to bind command arguments or a parameter mismatch
-            - HandlerLookupError        upon failure to lookup command object from the registry
+        - TypeError
+            upon invalid message type provided
+        - HandlerExecutionError
+            upon failure to bind command arguments or a parameter mismatch
+        - HandlerLookupError
+            upon failure to lookup command object from the registry
         """
         # filter non-string message parameters
         if not isinstance(message, str): raise TypeError(f'Expected type {type(str)}; received type {type(message)}')
 
-        # compile regex pattern for the command name
-        command_pattern: Pattern = re.compile(rf'^[\w]+')
-        # find the command name in the message
-        command_match: Match = re.match(command_pattern, message)
-        # if the command could not be found in the message, raise exception
-        if not command_match: raise MissingCommandError()
-        # get the command name string from the match
-        command_name: str = command_match.group(0)
+        command_name: Optional[str] = self.__get_name__(message)
+        if not command_name: raise MissingCommandError()
         log.debug('Determined command name to be \'%s\'', command_name)
-
-        # compile regex pattern for parameter name-value pairs
-        parameter_pattern: Pattern = re.compile(rf'{self._parameter_prefix}([\w]+)[\s]+((?:(?!\s\-).)+\b)')
-        # find all parameter name-value pairs in the message
-        parameters: List[Tuple[str, str]] = re.findall(parameter_pattern, message)
-        # convert parameter name-value pairs in kwargs dictionary
-        kwargs: Dict[str, str] = {parameter_name: parameter_value for parameter_name, parameter_value in parameters}
+        
+        kwargs: Dict[str, str] = self.__get_kwargs__(message)
         log.debug('Determined parameter list to be %s', kwargs)
+        
+        # run the command
+        await self.run(command_name, args, kwargs)
 
-        try:
-            # run the command
-            await self.run(command_name, args, kwargs)
-
-        # if the message doesn't start with a prefix
-        except MissingCommandError:
-            return
-        except HandlerError:
-            raise
 
     async def run(self, command_name: str, args: List[Any], kwargs: Dict[str, str]):
         """
         Run a command given its name, args and kwargs, as well as any optional objects the command requires.
 
         Raises:
-            - HandlerExecutionError   upon failure to bind command arguments or a parameter mismatch
-            - HandlerLookupError      upon failure to lookup command object from the registry
+        - HandlerExecutionError
+            upon failure to bind command arguments or a parameter mismatch
+        - HandlerLookupError
+            upon failure to lookup command object from the registry
         """
 
         try:
+            # get the command entry from the registry
             entry: Entry = self._registry[command_name]
+            # get the command from the package source
             command: Command = self._packages[entry.package][entry.component][entry.command]
-        except KeyError as error:
-            raise HandlerLookupError(command_name, error)
-
-        try:
             # bind the processed arguments to the command signature
             bound_arguments: BoundArguments = command.signature.bind(*args, **kwargs)
             # run the command with the assembled signature
             await command.run(bound_arguments)
+        except KeyError as error:
+            raise HandlerLookupError(command_name, error)
         except TypeError as error:
             raise HandlerExecutionError(command_name, error)
         except CommandError as error:
