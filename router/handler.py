@@ -3,6 +3,7 @@ import re
 from inspect import BoundArguments
 from logging import Logger
 from pathlib import Path
+from tkinter import Pack
 from typing import Any, Dict, List, Match, Optional, Pattern, Tuple
 
 from .packaging import Command, CommandError, Component, Package
@@ -62,7 +63,7 @@ class Handler():
         return kwargs
 
 
-    def load(self, directory: Path, extension: str = 'py'):
+    def load(self, directory: Path, extension: str = 'py', *args: Any, **kwargs: Any):
         """
         Load package files from a directory.
         Failed package assemblies are logged as warning messages.
@@ -70,23 +71,37 @@ class Handler():
 
         # resolve the provided directory path
         directory: Path = directory.resolve()
-        log.debug('Resolved provided directory to %s', directory)
-
         # if the provided directory doesn't exist, create it
         if not directory.exists(): directory.mkdir(parents=True, exist_ok=True)
 
-        # get all paths for files in the provided directory
+        # define the filename pattern to search for
         pattern: str = f'*.{extension}'
+        # get all paths for files with filenames matching the pattern in the provided directory
         references: List[Path] = [reference for reference in directory.glob(pattern) if reference.is_file()]
-        log.debug('Found %s .%s files in %s', len(references), extension, str(directory))
-
+        # for each reference
         for reference in references:
-            try:
-                package: Package = Package(reference)
-                self.__add_package__(package)
-                self._packages[package.name] = package
-            except Exception as error:
-                log.error(error)
+            # instantiate package
+            package: Optional[Package] = self.__build_package__(reference, *args, **kwargs)
+            # if the package is None, continue to next reference
+            if not package: continue
+            # add package to dictionary
+            self._packages[package.name] = package
+            # register package
+            self.__add_package__(package)
+
+    
+    def __build_package__(self, ref: Path, *args: Any, **kwargs: Any) -> Optional[Package]:
+        try:
+            # instantiate package
+            package: Package = Package(ref)
+            # load the package
+            package.load(*args, **kwargs)
+            # return the package
+            return package
+        except Exception as error:
+            # log the error
+            log.error(error)
+
 
 
     async def process(self, message: str, *, args: List[Any] = list()) -> None:

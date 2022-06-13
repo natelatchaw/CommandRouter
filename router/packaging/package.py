@@ -6,7 +6,7 @@ from importlib.machinery import ModuleSpec
 from logging import Logger
 from pathlib import Path
 from types import ModuleType
-from typing import Dict, Iterator, List, Optional, Tuple, Type
+from typing import Any, Dict, Iterator, List, Optional, Tuple, Type
 
 from .component import Component
 
@@ -43,13 +43,47 @@ class Package(Mapping[str, Component]):
         # create the module from the module spec
         self._module: ModuleType = importlib.util.module_from_spec(self._spec)
         # execute the module via the spec loader
-        try:
-            self._spec.loader.exec_module(self._module)
+        try: self._spec.loader.exec_module(self._module)
         # if an error occurred during import
-        except ImportError as error:
-            raise PackageInitializationError(self._spec.name, error)
-        # load all components
-        self._components: Dict[str, Component] = self.__load__()
+        except ImportError as error: raise PackageInitializationError(self._spec.name, error)
+        # initialize the components dictionary
+        self._components: Dict[str, Component] = dict()
+
+
+    def load(self, *args: Any, **kwargs: Any) -> None:
+        """
+        Initializes and stores instances of each class contained by the package
+        as component instances
+
+        Parameters:
+        - args:
+            arguments to be passed to the __init__ class method
+        - kwargs:
+            keyword arguments to be passed to the __init__ class method
+        """
+        # get all class members of the module
+        members: List[Tuple[str, Type]] = inspect.getmembers(self._module, inspect.isclass)
+        # filter members without a matching module name
+        members: List[Tuple[str, Type]] = [(class_name, class_object) for class_name, class_object in members if class_object.__module__ == self._module.__name__]
+        # for each member
+        for class_name, class_object in members:
+            # instantiate component
+            component: Optional[Component] = self.__build_component__(class_object, *args, **kwargs)
+            # add component to dictionary
+            if component: self._components[component.name] = component
+
+
+    def __build_component__(self, cls: Type, *args: Any, **kwargs: Any) -> Optional[Component]:
+        try:
+            # instantiate component
+            component: Component = Component(cls, *args, **kwargs)
+            # load the component
+            component.load()
+            # return the component
+            return component
+        except Exception as error:
+            # log the error
+            log.error(error)
 
 
     def __getitem__(self, key: str) -> Component:
@@ -60,26 +94,6 @@ class Package(Mapping[str, Component]):
 
     def __len__(self) -> int:
         return self._components.__len__()
-
-
-    def __load__(self) -> Dict[str, Component]:
-        # get all class members of the module
-        members: List[Tuple[str, Type]] = inspect.getmembers(self._module, inspect.isclass)
-        # filter members without a matching module name
-        members: List[Tuple[str, Type]] = [(class_name, class_object) for class_name, class_object in members if class_object.__module__ == self._module.__name__]
-        # instantiate dictionary
-        components: Dict[str, Component] = dict()
-        # for each member
-        for class_name, class_object in members:
-            try:
-                # instantiate component
-                component: Component = Component(class_object)
-                # add component to dictionary
-                components[component.name] = component
-            except Exception as error:
-                log.error(error)
-        # return dictionary
-        return components
         
 
 class PackageError(Exception):

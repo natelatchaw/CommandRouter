@@ -40,14 +40,44 @@ class Component(Mapping[str, Command]):
         self._signature: Signature = inspect.signature(self._type.__init__)
         # bind the provided parameters to the signature
         try:
-            self._arguments: BoundArguments = self._signature.bind(self,*args, **kwargs)
+            self._arguments: BoundArguments = self._signature.bind(self, *args, **kwargs)
+            # initialize the class object
+            self._instance: Any = self._type(*self._arguments.args, **self._arguments.kwargs)
         # if an error occurred during binding
         except TypeError as error:
             raise ComponentInitializationError(self._type.__name__, error)
-        # initialize the class object
-        self._instance: Any = self._type(self._arguments.args, self._arguments.kwargs)
+        # if the component raised an error during the __init__ call
+        except Exception as error:
+            raise ComponentInitializationError(self._type.__name__, error)
         # load all commands
-        self._commands: Dict[str, Command] = self.load()
+        self._commands: Dict[str, Command] = dict()
+
+
+    def load(self) -> None:
+        """
+        Initializes and stores instances of each method contained by the component
+        as command instances
+        """
+        # get all method members of the instance
+        members: List[Tuple[str, MethodType]] = inspect.getmembers(self._instance, inspect.ismethod)
+        # filter members that start with a double underscore
+        members: List[Tuple[str, MethodType]] = [(method_name, method_object) for method_name, method_object, in members if not method_name.startswith('__')]
+        # for each member
+        for method_name, method_object in members:
+            # instantiate command
+            command: Optional[Command] = self.__build_command__(method_object)
+            # add command to dictionary
+            if command: self._commands[command.name] = command
+
+
+    def __build_command__(self, met: MethodType) -> Optional[Command]:
+        try:
+            # instantiate command
+            command: Command = Command(met)
+            # return the command
+            return command
+        except Exception as error:
+            log.error(error)
 
 
     def __getitem__(self, key: str) -> Command:
@@ -58,26 +88,6 @@ class Component(Mapping[str, Command]):
 
     def __len__(self) -> int:
         return self._commands.__len__()
-
-
-    def load(self) -> Dict[str, Command]:
-        # get all method members of the instance
-        members: List[Tuple[str, MethodType]] = inspect.getmembers(self._instance, inspect.ismethod)
-        # filter members that start with a double underscore
-        members: List[Tuple[str, MethodType]] = [(method_name, method_object) for method_name, method_object, in members if not method_name.startswith('__')]
-        # instantiate dictionary
-        commands: Dict[str, Command] = dict()
-        # for each member
-        for method_name, method_object in members:
-            try:
-                # instantiate command
-                command: Command = Command(method_object)
-                # add command to dictionary
-                commands[command.name] = command
-            except Exception as error:
-                log.error(error)
-        # return dictionary
-        return commands
         
         
 class ComponentError(Exception):
