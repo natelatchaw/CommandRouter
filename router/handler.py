@@ -3,7 +3,6 @@ import re
 from inspect import BoundArguments
 from logging import Logger
 from pathlib import Path
-from tkinter import Pack
 from typing import Any, Dict, List, Match, Optional, Pattern, Tuple
 
 from .packaging import Command, CommandError, Component, Package
