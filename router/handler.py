@@ -30,7 +30,9 @@ class Handler():
         # compile the command pattern
         self._command_pattern: Pattern = re.compile(rf'^[\w]+')
         # compile the parameter pattern
-        self._parameter_pattern: Pattern = re.compile(rf'{self._parameter_prefix}([\w]+)[\s]+((?:(?!\s\-).)+\b)')
+        ##self._parameter_pattern: Pattern = re.compile(rf'{self._parameter_prefix}([\w]+)[\s]+((?:(?!\s\-).)+\b)')
+        # multiline support
+        self._parameter_pattern: Pattern = re.compile(rf'{self._parameter_prefix}([\w]+)[\s]+((?:(?!\s\-)[\s\S])+\b)')
 
 
     def __add_package__(self, package: Package) -> None:
