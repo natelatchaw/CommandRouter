@@ -15,7 +15,7 @@ class Command():
     
     @property
     def doc(self) -> str:
-        return self._method.__doc__
+        return inspect.cleandoc(self._method.__doc__)
 
     @property
     def signature(self) -> Signature:

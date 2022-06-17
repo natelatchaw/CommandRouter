@@ -17,12 +17,12 @@ class Component(Mapping[str, Command]):
         return self._type.__name__
 
     @property
+    def doc(self) -> str:
+        return inspect.cleandoc(self._type.__doc__)
+
+    @property
     def signature(self) -> Signature:
         return self._signature
-    
-    @property
-    def doc(self) -> str:
-        return self._type.__doc__
 
 
     def __init__(self, obj: Type, *args, **kwargs):

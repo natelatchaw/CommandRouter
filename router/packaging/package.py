@@ -20,7 +20,7 @@ class Package(Mapping[str, Component]):
     
     @property
     def doc(self) -> str:
-        return self._module.__doc__
+        return inspect.cleandoc(self._module.__doc__)
 
     @property
     def components(self) -> Dict[str, Component]:
