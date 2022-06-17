@@ -117,18 +117,23 @@ class Handler():
         - HandlerLookupError
             upon failure to lookup command object from the registry
         """
-        # filter non-string message parameters
-        if not isinstance(message, str): raise TypeError(f'Expected type {type(str)}; received type {type(message)}')
 
-        command_name: Optional[str] = self.__get_name__(message)
-        if not command_name: raise MissingCommandError()
-        log.debug('Determined command name to be \'%s\'', command_name)
-        
-        kwargs: Dict[str, str] = self.__get_kwargs__(message)
-        log.debug('Determined parameter list to be %s', kwargs)
-        
-        # run the command
-        await self.run(command_name, args, kwargs)
+        try:
+            # filter non-string message parameters
+            if not isinstance(message, str): raise TypeError(f'Expected type {type(str)}; received type {type(message)}')
+
+            command_name: Optional[str] = self.__get_name__(message)
+            if not command_name: raise MissingCommandError()
+            log.debug('Determined command name to be \'%s\'', command_name)
+
+            kwargs: Dict[str, str] = self.__get_kwargs__(message)
+            log.debug('Determined parameter list to be %s', kwargs)
+
+            # run the command
+            await self.run(command_name, args, kwargs)
+
+        except Exception as error:
+            raise error
 
 
     async def run(self, command_name: str, args: List[Any], kwargs: Dict[str, str]):
@@ -184,6 +189,7 @@ class HandlerError(Exception):
     def __init__(self, message: str, exception: Optional[Exception] = None):
         self._message = message
         self._inner_exception = exception
+        self.__traceback__ = exception.__traceback__
 
     def __str__(self) -> str:
         return self._message
