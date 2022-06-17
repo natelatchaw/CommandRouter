@@ -43,14 +43,19 @@ class Command():
         - SignatureMismatchException
             upon failure to provide matching command arguments
         """
-
-        # if the provided arguments do not match the command arguments
-        if arguments.signature.parameters != self._signature.parameters:
-            raise SignatureMismatchException(arguments.signature, self._signature)
-        if not inspect.iscoroutinefunction(self._method):
-            self._method(*arguments.args, **arguments.kwargs)
-        elif inspect.iscoroutinefunction(self._method):
-            await self._method(*arguments.args, **arguments.kwargs)
+        try:
+            # if the provided arguments do not match the command arguments
+            if arguments.signature.parameters != self._signature.parameters:
+                raise SignatureMismatchException(arguments.signature, self._signature)
+            if not inspect.iscoroutinefunction(self._method):
+                self._method(*arguments.args, **arguments.kwargs)
+            elif inspect.iscoroutinefunction(self._method):
+                await self._method(*arguments.args, **arguments.kwargs)
+        
+        except SignatureMismatchException:
+            raise
+        except Exception as error:
+            raise CommandError(str(error), error)
 
 
 class CommandError(Exception):
