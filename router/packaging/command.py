@@ -64,7 +64,7 @@ class CommandError(Exception):
     def __init__(self, message: str, exception: Optional[Exception] = None) -> None:
         self._message = message
         self._inner_exception = exception
-        self.__traceback__ = exception.__traceback__
+        self.__traceback__ = exception.__traceback__ if exception else None
 
     def __str__(self) -> str:
         return self._message
