@@ -18,7 +18,10 @@ class Component(Mapping[str, Command]):
 
     @property
     def doc(self) -> str:
-        if str.isspace(self._type.__doc__): return None
+        if not self._type.__doc__:
+            return None
+        if str.isspace(self._type.__doc__):
+            return None
         return inspect.cleandoc(self._type.__doc__)
 
     @property

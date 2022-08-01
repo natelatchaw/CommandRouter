@@ -19,8 +19,11 @@ class Package(Mapping[str, Component]):
         return self._spec.name
     
     @property
-    def doc(self) -> str:
-        if str.isspace(self._module.__doc__): return None
+    def doc(self) -> Optional[str]:
+        if not self._module.__doc__:
+            return None
+        if str.isspace(self._module.__doc__):
+            return None
         return inspect.cleandoc(self._module.__doc__)
 
     @property

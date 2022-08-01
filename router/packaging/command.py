@@ -15,7 +15,10 @@ class Command():
     
     @property
     def doc(self) -> Optional[str]:
-        if str.isspace(self._method.__doc__): return None
+        if not self._method.__doc__:
+            return None
+        if str.isspace(self._method.__doc__):
+            return None
         return inspect.cleandoc(self._method.__doc__)
 
     @property
