@@ -20,6 +20,7 @@ class Package(Mapping[str, Component]):
     
     @property
     def doc(self) -> str:
+        if str.isspace(self._module.__doc__): return None
         return inspect.cleandoc(self._module.__doc__)
 
     @property

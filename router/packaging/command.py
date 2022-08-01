@@ -1,3 +1,4 @@
+from curses.ascii import isspace
 import inspect
 import logging
 from inspect import BoundArguments, Signature
@@ -14,7 +15,8 @@ class Command():
         return self._method.__name__
     
     @property
-    def doc(self) -> str:
+    def doc(self) -> Optional[str]:
+        if str.isspace(self._method.__doc__): return None
         return inspect.cleandoc(self._method.__doc__)
 
     @property
