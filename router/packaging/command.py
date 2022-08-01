@@ -1,4 +1,3 @@
-from curses.ascii import isspace
 import inspect
 import logging
 from inspect import BoundArguments, Signature
