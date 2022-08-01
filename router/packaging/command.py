@@ -58,6 +58,8 @@ class Command():
         
         except SignatureMismatchException:
             raise
+        except SyntaxError:
+            raise
         except Exception as error:
             raise CommandError(str(error), error)
 
